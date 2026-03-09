@@ -5,7 +5,7 @@
  * Wraps any route that requires a logged-in user.
  *
  * How it works:
- *   - Reads token from AuthContext
+ *   - Waits for AuthContext to finish restoring token from localStorage
  *   - No token = redirect to /login
  *   - Has token = render the child route via <Outlet />
  *
@@ -21,12 +21,12 @@ import { Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../context/authContext'
 
 export default function ProtectedRoute() {
-  const { token } = useAuth()
+  const { token, loading } = useAuth()
 
-  // No token = not logged in, send to login page
-  // `replace` means the /login redirect won't be added to browser history
+  // Wait for localStorage restore before checking token
+  if (loading) return null
+
   if (!token) return <Navigate to="/login" replace />
 
-  // Token exists = render whatever child route matched
   return <Outlet />
 }

@@ -10,9 +10,14 @@
  *
  * Usage in any component:
  *   const { user, token, login, logout } = useAuth()
+ *
+ * Persistence:
+ *   Token is saved to localStorage on login and restored on app load.
+ *   Refresh will not log the user out.
+ *   Logout clears localStorage.
  */
 
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { jwtDecode } from 'jwt-decode'
 
 // --- Types ---
@@ -29,6 +34,7 @@ interface User {
 interface AuthContextType {
   user: User | null        // null = no one logged in
   token: string | null     // null = no active session
+  loading: boolean        // true while restoring token on app load
   login: (token: string) => void
   logout: () => void
 }
@@ -47,6 +53,26 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  /**
+   * On app load — restore token from localStorage if it exists.
+   * This keeps the user logged in after a page refresh.
+   * If the token is invalid or expired, it is cleared from localStorage.
+   */
+  useEffect(() => {
+    const stored = localStorage.getItem('token')
+    if (stored) {
+      try {
+        const decoded = jwtDecode<{ id: string; role: 'student' | 'teacher' }>(stored)
+        setUser({ id: decoded.id, name: '', email: '', role: decoded.role })
+        setToken(stored)
+      } catch {
+        localStorage.removeItem('token')
+      }
+    }
+    setLoading(false) // always set to false when done, whether token existed or not
+  }, [])
 
   /**
    * Called after a successful login API response.
@@ -61,19 +87,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // or make a GET /api/auth/me endpoint after login
     setUser({ id: decoded.id, name: '', email: '', role: decoded.role })
     setToken(token)
+    // Persist token so refresh doesn't log the user out
+    localStorage.setItem('token', token)
   }
 
   /**
    * Clears all auth state.
    * ProtectedRoute will detect token === null and redirect to /login.
+   * Removes token from localStorage so it is not restored on next load.
    */
   function logout() {
     setUser(null)
     setToken(null)
+    // Clear persisted token on logout
+    localStorage.removeItem('token')
   }
 
   return (
-    <AuthContext.Provider value={{ user, token, login, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   )

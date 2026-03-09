@@ -41,6 +41,7 @@ import Login from './pages/public/login'
 import Register from './pages/public/register'
 import StudentDashboard from './pages/student/studentDashboard'
 import TeacherDashboard from './pages/teacher/teacherDashboard'
+import StudentCourses from './pages/student/studentCourses'
 
 function App() {
   return (
@@ -59,6 +60,7 @@ function App() {
         <Route element={<RoleRoute allowed="student" />}>
           <Route path="/student" element={<StudentLayout />}>
             <Route path="dashboard" element={<StudentDashboard />} />
+            <Route path="courses" element={<StudentCourses />} />
             {/* add student pages here */}
           </Route>
         </Route>
