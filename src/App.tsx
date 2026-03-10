@@ -42,6 +42,10 @@ import Register from './pages/public/register'
 import StudentDashboard from './pages/student/studentDashboard'
 import TeacherDashboard from './pages/teacher/teacherDashboard'
 import StudentCourses from './pages/student/studentCourses'
+import StudentCourseDetail from './pages/student/studentCourseDetail'
+import StudentLessonView from './pages/student/studentLessonView'
+import StudentProgress from './pages/student/studentProgress'
+import StudentBadges from './pages/student/studentBadges'
 
 function App() {
   return (
@@ -61,6 +65,10 @@ function App() {
           <Route path="/student" element={<StudentLayout />}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="courses" element={<StudentCourses />} />
+            <Route path="courses/:id" element={<StudentCourseDetail />} />
+            <Route path="courses/:id/lessons/:lessonId" element={<StudentLessonView />} />
+            <Route path="progress" element={<StudentProgress />} />
+            <Route path="badges" element={<StudentBadges />} />
             {/* add student pages here */}
           </Route>
         </Route>
