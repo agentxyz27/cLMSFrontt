@@ -11,7 +11,11 @@
  *   /login                   → public (anyone)
  *   /register                → public (anyone)
  *   /student/dashboard       → protected (logged in + role === student)
- *   /teacher/dashboard       → protected (logged in + role === teacher)
+ *   /teacher/dashboard       → protected (logged in + role === teacher)*   /teacher/subjects                → protected (logged in + role === teacher)
+ *   /teacher/subjects/new            → protected (logged in + role === teacher)
+ *   /teacher/subjects/:id            → protected (logged in + role === teacher)
+ *   /teacher/subjects/:id/lessons/new → protected (logged in + role === teacher)
+ *   /teacher/subjects/:id/students   → protected (logged in + role === teacher)
  *   *                        → 404 catch-all
  *
  * Gate layers for protected routes:
@@ -46,6 +50,12 @@ import StudentCourseDetail from './pages/student/studentCourseDetail'
 import StudentLessonView from './pages/student/studentLessonView'
 import StudentProgress from './pages/student/studentProgress'
 import StudentBadges from './pages/student/studentBadges'
+import TeacherSubjects from './pages/teacher/teacherSubjects'
+import TeacherSubjectNew from './pages/teacher/teacherSubjectNew'
+import TeacherSubjectDetail from './pages/teacher/teacherSubjectDetail'
+import TeacherLessonNew from './pages/teacher/teacherLessonNew'
+import TeacherSubjectStudents from './pages/teacher/teacherSubjectStudents'
+
 
 function App() {
   return (
@@ -79,6 +89,12 @@ function App() {
         <Route element={<RoleRoute allowed="teacher" />}>
           <Route path="/teacher" element={<TeacherLayout />}>
             <Route path="dashboard" element={<TeacherDashboard />} />
+              <Route path="dashboard" element={<TeacherDashboard />} />
+              <Route path="subjects" element={<TeacherSubjects />} />
+              <Route path="subjects/new" element={<TeacherSubjectNew />} />
+              <Route path="subjects/:id" element={<TeacherSubjectDetail />} />
+              <Route path="subjects/:id/lessons/new" element={<TeacherLessonNew />} />
+              <Route path="subjects/:id/students" element={<TeacherSubjectStudents />} />
             {/* add teacher pages here */}
           </Route>
         </Route>

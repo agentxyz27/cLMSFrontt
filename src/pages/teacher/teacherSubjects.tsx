@@ -1,11 +1,13 @@
 /**
- * teacherDashboard.tsx
+ * teacherSubjects.tsx
  *
- * Main dashboard for logged-in teachers.
- * Shows all subjects they own with lesson counts.
+ * Shows all subjects owned by the logged-in teacher.
+ * Teacher can navigate to create a new subject or manage an existing one.
+ * Teacher can also delete a subject from this page.
  *
  * Endpoints:
- *   GET /api/subjects → all subjects owned by the logged-in teacher
+ *   GET    /api/subjects     → all subjects owned by the logged-in teacher
+ *   DELETE /api/subjects/:id → delete a subject by ID
  */
 
 import { useEffect, useState } from 'react'
@@ -14,7 +16,7 @@ import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
 import type { Subject } from '../../types'
 
-export default function TeacherDashboard() {
+export default function TeacherSubjects() {
   const { token } = useAuth()
   const navigate = useNavigate()
 
@@ -37,24 +39,29 @@ export default function TeacherDashboard() {
     fetchData()
   }, [token])
 
+  async function handleDelete(id: number) {
+    if (!confirm('Delete this subject? This will also delete all its lessons.')) return
+
+    try {
+      await api.delete(`/subjects/${id}`, token)
+      // Remove from local state without refetching
+      setSubjects(prev => prev.filter(s => s.id !== id))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to delete subject')
+    }
+  }
+
   if (loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
 
   return (
     <div>
-      <h1>Teacher Dashboard</h1>
+      <h1>My Subjects</h1>
 
-      {/* Summary */}
-      <p>Total Subjects: {subjects.length}</p>
-      <p>Total Lessons: {subjects.reduce((sum, s) => sum + s.lessons.length, 0)}</p>
-
-      {/* Quick actions */}
       <button onClick={() => navigate('/teacher/subjects/new')}>
         + New Subject
       </button>
 
-      {/* Subjects list */}
-      <h2>My Subjects</h2>
       {subjects.length === 0 ? (
         <p>No subjects yet. Create your first subject!</p>
       ) : (
@@ -65,6 +72,9 @@ export default function TeacherDashboard() {
               <p>Lessons: {subject.lessons.length}</p>
               <button onClick={() => navigate(`/teacher/subjects/${subject.id}`)}>
                 Manage
+              </button>
+              <button onClick={() => handleDelete(subject.id)}>
+                Delete
               </button>
             </div>
           ))}
