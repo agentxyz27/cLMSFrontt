@@ -1,49 +1,90 @@
 /**
- * teacherLessonNew.tsx
+ * teacherLessonEdit.tsx
  *
- * Form to create a new lesson and add content blocks.
- *
- * Flow:
- *   1. Teacher enters lesson title
- *   2. Lesson is created via POST /api/lessons
- *   3. Teacher adds blocks one by one (text, image, video, file, math)
- *   4. Each block is saved via POST /api/blocks
- *   5. Teacher navigates back to subject detail when done
+ * Edit an existing lesson — manage its blocks.
+ * Teacher can add, delete, and reorder blocks.
  *
  * Endpoints:
- *   POST /api/lessons → create lesson (title only)
- *   POST /api/blocks  → add a block to the lesson
- *   POST /api/upload  → upload a file, returns public URL
+ *   GET    /api/lessons/:subjectId      → get lessons with blocks, filter by lessonId
+ *   POST   /api/blocks                  → add a new block
+ *   PUT    /api/blocks/:id              → update a block
+ *   DELETE /api/blocks/:id              → delete a block
+ *   PUT    /api/blocks/reorder          → reorder all blocks
+ *   POST   /api/upload                  → upload a file
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { BlockType, LessonBlock } from '../../types'
+import type { Lesson, LessonBlock, BlockType } from '../../types'
 
-interface CreatedLesson {
-  id: number
-  title: string
+/**
+ * Renders a preview of a block with delete and move controls.
+ */
+function BlockItem({
+  block,
+  index,
+  total,
+  onDelete,
+  onMoveUp,
+  onMoveDown
+}: {
+  block: LessonBlock
+  index: number
+  total: number
+  onDelete: (id: number) => void
+  onMoveUp: (index: number) => void
+  onMoveDown: (index: number) => void
+}) {
+  const data = block.data as Record<string, string>
+
+  const preview = () => {
+    switch (block.type) {
+      case 'text':
+        return <div dangerouslySetInnerHTML={{ __html: data.html }} />
+      case 'image':
+        return <img src={data.url} alt={data.alt} style={{ maxWidth: '200px' }} />
+      case 'video':
+        return <p>🎥 {data.title || data.url}</p>
+      case 'file':
+        return <p>📎 {data.name} ({data.fileType?.toUpperCase()})</p>
+      case 'math':
+        return <code>{data.expression}</code>
+      default:
+        return <p>Unknown block</p>
+    }
+  }
+
+  return (
+    <div style={{ border: '1px solid #ccc', padding: '8px', marginBottom: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+        <span>#{index + 1} — {block.type.toUpperCase()}</span>
+        <div>
+          <button onClick={() => onMoveUp(index)} disabled={index === 0}>↑</button>
+          <button onClick={() => onMoveDown(index)} disabled={index === total - 1}>↓</button>
+          <button onClick={() => onDelete(block.id)}>Delete</button>
+        </div>
+      </div>
+      <div>{preview()}</div>
+    </div>
+  )
 }
 
-export default function TeacherLessonNew() {
+export default function TeacherLessonEdit() {
   const { token } = useAuth()
-  const { id } = useParams()
+  const { id, lessonId } = useParams()
   const navigate = useNavigate()
 
-  // Step 1 — lesson creation
-  const [title, setTitle] = useState('')
-  const [lesson, setLesson] = useState<CreatedLesson | null>(null)
-  const [creating, setCreating] = useState(false)
-
-  // Step 2 — block adding
+  const [lesson, setLesson] = useState<Lesson | null>(null)
   const [blocks, setBlocks] = useState<LessonBlock[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  // Add block state
   const [blockType, setBlockType] = useState<BlockType>('text')
   const [addingBlock, setAddingBlock] = useState(false)
   const [uploading, setUploading] = useState(false)
-
-  // Block field states
   const [textHtml, setTextHtml] = useState('')
   const [imageAlt, setImageAlt] = useState('')
   const [videoUrl, setVideoUrl] = useState('')
@@ -51,71 +92,89 @@ export default function TeacherLessonNew() {
   const [mathExpression, setMathExpression] = useState('')
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
-  const [error, setError] = useState<string | null>(null)
-
-  // Step 1 — create the lesson first, then add blocks
-  async function handleCreateLesson() {
-    if (!title.trim()) {
-      setError('Title is required')
-      return
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const lessons = await api.get<Lesson[]>(`/lessons/${id}`, token)
+        const found = lessons.find(l => l.id === Number(lessonId))
+        if (!found) {
+          setError('Lesson not found')
+          return
+        }
+        setLesson(found)
+        setBlocks(found.blocks?.sort((a, b) => a.order - b.order) || [])
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Failed to load lesson')
+      } finally {
+        setLoading(false)
+      }
     }
 
-    setCreating(true)
-    setError(null)
+    fetchData()
+  }, [token, id, lessonId])
 
+  async function handleDelete(blockId: number) {
+    if (!confirm('Delete this block?')) return
     try {
-      const res = await api.post<{ lesson: CreatedLesson }>(
-        '/lessons',
-        { title, subjectId: Number(id) },
-        token
-      )
-      setLesson(res.lesson)
+      await api.delete(`/blocks/${blockId}`, token)
+      const updated = blocks.filter(b => b.id !== blockId)
+      setBlocks(updated)
+      await saveOrder(updated)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to create lesson')
-    } finally {
-      setCreating(false)
+      setError(err instanceof Error ? err.message : 'Failed to delete block')
     }
   }
 
-  // Upload file to Supabase Storage, returns { url, name, fileType }
+  async function saveOrder(updated: LessonBlock[]) {
+    // Recalculate order after move or delete
+    const reordered = updated.map((b, i) => ({ id: b.id, order: i + 1 }))
+    await api.put('/blocks/reorder', { blocks: reordered }, token)
+  }
+
+  async function handleMoveUp(index: number) {
+    if (index === 0) return
+    const updated = [...blocks]
+    ;[updated[index - 1], updated[index]] = [updated[index], updated[index - 1]]
+    setBlocks(updated)
+    await saveOrder(updated)
+  }
+
+  async function handleMoveDown(index: number) {
+    if (index === blocks.length - 1) return
+    const updated = [...blocks]
+    ;[updated[index], updated[index + 1]] = [updated[index + 1], updated[index]]
+    setBlocks(updated)
+    await saveOrder(updated)
+  }
+
   async function uploadFile(file: File) {
     const formData = new FormData()
     formData.append('file', file)
-
     const res = await fetch('/api/upload', {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`
-        // No Content-Type here — browser sets it automatically for FormData
-      },
+      headers: { Authorization: `Bearer ${token}` },
       body: formData
     })
-
     if (!res.ok) {
       const err = await res.json()
       throw new Error(err.message || 'Upload failed')
     }
-
     return res.json()
   }
 
-  // Step 2 — add a block to the lesson
   async function handleAddBlock() {
     if (!lesson) return
-
     setAddingBlock(true)
     setError(null)
 
     try {
       let data: Record<string, string> = {}
 
-      // Build data payload based on block type
       switch (blockType) {
         case 'text':
           if (!textHtml.trim()) throw new Error('Text content is required')
           data = { html: textHtml }
           break
-
         case 'image':
           if (!selectedFile) throw new Error('Please select an image')
           setUploading(true)
@@ -123,12 +182,10 @@ export default function TeacherLessonNew() {
           data = { url: imgUpload.url, alt: imageAlt || selectedFile.name }
           setUploading(false)
           break
-
         case 'video':
           if (!videoUrl.trim()) throw new Error('Video URL is required')
           data = { url: videoUrl, title: videoTitle }
           break
-
         case 'file':
           if (!selectedFile) throw new Error('Please select a file')
           setUploading(true)
@@ -136,7 +193,6 @@ export default function TeacherLessonNew() {
           data = { url: fileUpload.url, name: fileUpload.name, fileType: fileUpload.fileType }
           setUploading(false)
           break
-
         case 'math':
           if (!mathExpression.trim()) throw new Error('Math expression is required')
           data = { expression: mathExpression }
@@ -149,7 +205,6 @@ export default function TeacherLessonNew() {
         token
       )
 
-      // Add to local block list
       setBlocks(prev => [...prev, res.block])
 
       // Reset fields
@@ -168,36 +223,15 @@ export default function TeacherLessonNew() {
     }
   }
 
-  // ── Step 1 UI — create lesson ──────────────────────────────────────────
-  if (!lesson) {
-    return (
-      <div>
-        <button onClick={() => navigate(`/teacher/subjects/${id}`)}>← Back</button>
-        <h1>New Lesson</h1>
+  if (loading) return <div>Loading...</div>
+  if (error) return <div>Error: {error}</div>
+  if (!lesson) return <div>Lesson not found</div>
 
-        <div>
-          <input
-            type="text"
-            placeholder="Lesson title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-          <button onClick={handleCreateLesson} disabled={creating}>
-            {creating ? 'Creating...' : 'Create Lesson'}
-          </button>
-        </div>
-
-        {error && <p>{error}</p>}
-      </div>
-    )
-  }
-
-  // ── Step 2 UI — add blocks ─────────────────────────────────────────────
   return (
     <div>
-      <button onClick={() => navigate(`/teacher/subjects/${id}`)}>← Done</button>
+      <button onClick={() => navigate(`/teacher/subjects/${id}`)}>← Back</button>
 
-      <h1>{lesson.title}</h1>
+      <h1>Edit: {lesson.title}</h1>
 
       {/* Existing blocks */}
       <h2>Blocks ({blocks.length})</h2>
@@ -206,9 +240,15 @@ export default function TeacherLessonNew() {
       ) : (
         <div>
           {blocks.map((block, index) => (
-            <div key={block.id}>
-              <span>#{index + 1} — {block.type.toUpperCase()}</span>
-            </div>
+            <BlockItem
+              key={block.id}
+              block={block}
+              index={index}
+              total={blocks.length}
+              onDelete={handleDelete}
+              onMoveUp={handleMoveUp}
+              onMoveDown={handleMoveDown}
+            />
           ))}
         </div>
       )}
@@ -216,7 +256,6 @@ export default function TeacherLessonNew() {
       {/* Add block form */}
       <h2>Add Block</h2>
 
-      {/* Block type selector */}
       <div>
         {(['text', 'image', 'video', 'file', 'math'] as BlockType[]).map(type => (
           <button
@@ -229,7 +268,6 @@ export default function TeacherLessonNew() {
         ))}
       </div>
 
-      {/* Block fields — change based on type */}
       <div>
         {blockType === 'text' && (
           <textarea
@@ -239,7 +277,6 @@ export default function TeacherLessonNew() {
             rows={6}
           />
         )}
-
         {blockType === 'image' && (
           <div>
             <input
@@ -249,18 +286,17 @@ export default function TeacherLessonNew() {
             />
             <input
               type="text"
-              placeholder="Alt text (description)"
+              placeholder="Alt text"
               value={imageAlt}
               onChange={e => setImageAlt(e.target.value)}
             />
           </div>
         )}
-
         {blockType === 'video' && (
           <div>
             <input
               type="text"
-              placeholder="YouTube URL e.g. https://youtube.com/watch?v=..."
+              placeholder="YouTube URL"
               value={videoUrl}
               onChange={e => setVideoUrl(e.target.value)}
             />
@@ -272,7 +308,6 @@ export default function TeacherLessonNew() {
             />
           </div>
         )}
-
         {blockType === 'file' && (
           <input
             type="file"
@@ -280,7 +315,6 @@ export default function TeacherLessonNew() {
             onChange={e => setSelectedFile(e.target.files?.[0] || null)}
           />
         )}
-
         {blockType === 'math' && (
           <input
             type="text"

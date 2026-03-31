@@ -1,23 +1,29 @@
 /**
  * api.ts
- * 
+ *
  * Centralized HTTP client for cLMS frontend.
  * All communication with the Express backend goes through here.
- * 
+ *
  * Usage in any component:
  *   const { token } = useAuth()
  *   const data = await api.get('/courses', token)
+ *
+ * 401 Handling:
+ *   If the backend returns 401 (token expired or invalid),
+ *   api.ts fires a custom 'auth:unauthorized' event.
+ *   AuthProvider listens for this event and forces logout.
+ *   This keeps api.ts decoupled from React — no hooks needed here.
  */
 
 const BASE_URL = '/api'
 
 /**
  * Core request function. All api methods call this internally.
- * 
+ *
  * @param endpoint - The API route e.g. '/courses', '/auth/login'
  * @param options  - Native fetch options (method, body, etc.)
  * @param token    - JWT from AuthContext. If provided, attached as Bearer token in header.
- * 
+ *
  * Throws an error if the response is not ok (4xx, 5xx).
  * Returns the parsed JSON response.
  */
@@ -35,6 +41,12 @@ async function request<T>(
       ...options.headers,
     },
   })
+
+  // Token expired or invalid — fire event so AuthProvider can force logout
+  // AuthProvider listens for this via window.addEventListener('auth:unauthorized')
+  if (res.status === 401) {
+    window.dispatchEvent(new Event('auth:unauthorized'))
+  }
 
   if (!res.ok) {
     // Try to extract error message from backend response, fallback to generic

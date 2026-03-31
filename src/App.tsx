@@ -40,6 +40,7 @@ import TeacherLayout from './layouts/teacherLayout'
 import ProtectedRoute from './routes/protectedRoute'
 import RoleRoute from './routes/roleRoute'
 import Landing from './pages/public/landing'
+import NotFound from './pages/public/notFound'
 import Courses from './pages/public/courses'
 import Login from './pages/public/login'
 import Register from './pages/public/register'
@@ -54,6 +55,7 @@ import TeacherSubjects from './pages/teacher/teacherSubjects'
 import TeacherSubjectNew from './pages/teacher/teacherSubjectNew'
 import TeacherSubjectDetail from './pages/teacher/teacherSubjectDetail'
 import TeacherLessonNew from './pages/teacher/teacherLessonNew'
+import TeacherLessonEdit from './pages/teacher/teacherLessonEdit'
 import TeacherSubjectStudents from './pages/teacher/teacherSubjectStudents'
 
 
@@ -94,6 +96,7 @@ function App() {
               <Route path="subjects/new" element={<TeacherSubjectNew />} />
               <Route path="subjects/:id" element={<TeacherSubjectDetail />} />
               <Route path="subjects/:id/lessons/new" element={<TeacherLessonNew />} />
+              <Route path="subjects/:id/lessons/:lessonId/edit" element={<TeacherLessonEdit />} />
               <Route path="subjects/:id/students" element={<TeacherSubjectStudents />} />
             {/* add teacher pages here */}
           </Route>
@@ -101,7 +104,7 @@ function App() {
       </Route>
 
       {/* ── 404 ── catches any unmatched route */}
-      <Route path="*" element={<div>404</div>} />
+     <Route path="*" element={<NotFound />} />
 
     </Routes>
   )

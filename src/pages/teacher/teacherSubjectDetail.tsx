@@ -1,22 +1,47 @@
 /**
  * teacherSubjectDetail.tsx
  *
- * Shows a specific subject with all its lessons.
+ * Shows a specific subject with all its lessons and block previews.
  * Teacher can edit the subject title, delete lessons,
- * and navigate to create a new lesson or manage students.
+ * navigate to create a new lesson, edit an existing lesson, or manage students.
  *
  * Endpoints:
- *   GET    /api/subjects          → get all subjects, filter by id
- *   PUT    /api/subjects/:id      → update subject title
- *   GET    /api/lessons/:subjectId → get all lessons under subject
- *   DELETE /api/lessons/:id       → delete a lesson
+ *   GET    /api/subjects           → get all subjects, filter by id
+ *   PUT    /api/subjects/:id       → update subject title
+ *   GET    /api/lessons/:subjectId → get all lessons with blocks
+ *   DELETE /api/lessons/:id        → delete a lesson and its blocks
  */
 
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { Subject, Lesson } from '../../types'
+import type { Subject, Lesson, LessonBlock } from '../../types'
+
+/**
+ * Shows a one-line summary of a block so the teacher
+ * knows what's inside the lesson without opening it.
+ */
+function BlockPreview({ block }: { block: LessonBlock }) {
+  const data = block.data as Record<string, string>
+
+  switch (block.type) {
+    case 'text':
+      // Strip HTML tags for plain text preview
+      const plain = data.html.replace(/<[^>]+>/g, '').slice(0, 60)
+      return <span>📝 {plain}{data.html.length > 60 ? '...' : ''}</span>
+    case 'image':
+      return <span>🖼️ Image — {data.alt || 'no alt text'}</span>
+    case 'video':
+      return <span>🎥 Video — {data.title || data.url}</span>
+    case 'file':
+      return <span>📎 {data.name} ({data.fileType?.toUpperCase()})</span>
+    case 'math':
+      return <span>🔢 {data.expression}</span>
+    default:
+      return <span>Unknown block</span>
+  }
+}
 
 export default function TeacherSubjectDetail() {
   const { token } = useAuth()
@@ -70,7 +95,7 @@ export default function TeacherSubjectDetail() {
   }
 
   async function handleDeleteLesson(lessonId: number) {
-    if (!confirm('Delete this lesson?')) return
+    if (!confirm('Delete this lesson? All blocks will be deleted too.')) return
 
     try {
       await api.delete(`/lessons/${lessonId}`, token)
@@ -117,7 +142,7 @@ export default function TeacherSubjectDetail() {
       </div>
 
       {/* Lessons list */}
-      <h2>Lessons</h2>
+      <h2>Lessons ({lessons.length})</h2>
       {lessons.length === 0 ? (
         <p>No lessons yet. Create your first lesson!</p>
       ) : (
@@ -125,10 +150,30 @@ export default function TeacherSubjectDetail() {
           {lessons.map(lesson => (
             <div key={lesson.id}>
               <h3>{lesson.title}</h3>
-              <p>{lesson.content}</p>
-              <button onClick={() => handleDeleteLesson(lesson.id)}>
-                Delete
-              </button>
+
+              {/* Block previews */}
+              {lesson.blocks && lesson.blocks.length > 0 ? (
+                <div>
+                  {lesson.blocks
+                    .sort((a, b) => a.order - b.order)
+                    .map(block => (
+                      <div key={block.id}>
+                        <BlockPreview block={block} />
+                      </div>
+                    ))}
+                </div>
+              ) : (
+                <p>No blocks yet.</p>
+              )}
+
+              <div>
+                <button onClick={() => navigate(`/teacher/subjects/${id}/lessons/${lesson.id}/edit`)}>
+                  Edit
+                </button>
+                <button onClick={() => handleDeleteLesson(lesson.id)}>
+                  Delete
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -15,6 +15,11 @@
  *   Token is saved to localStorage on login and restored on app load.
  *   Refresh will not log the user out.
  *   Logout clears localStorage.
+ *
+ * 401 Handling:
+ *   Listens for 'auth:unauthorized' event fired by api.ts.
+ *   When received, clears all auth state and forces logout.
+ *   This handles expired tokens mid-session without user action.
  */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
@@ -34,7 +39,7 @@ interface User {
 interface AuthContextType {
   user: User | null        // null = no one logged in
   token: string | null     // null = no active session
-  loading: boolean        // true while restoring token on app load
+  loading: boolean         // true while restoring token on app load
   login: (token: string) => void
   logout: () => void
 }
@@ -68,10 +73,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser({ id: decoded.id, name: '', email: '', role: decoded.role })
         setToken(stored)
       } catch {
+        // Token is invalid or expired — clear it
         localStorage.removeItem('token')
       }
     }
     setLoading(false) // always set to false when done, whether token existed or not
+  }, [])
+
+  /**
+   * Listens for 401 responses fired by api.ts via custom event.
+   * Clears all auth state so ProtectedRoute redirects to /login.
+   * Decoupled from api.ts — no hooks needed in the HTTP client.
+   */
+  useEffect(() => {
+    function handleUnauthorized() {
+      setUser(null)
+      setToken(null)
+      localStorage.removeItem('token')
+    }
+
+    window.addEventListener('auth:unauthorized', handleUnauthorized)
+    return () => window.removeEventListener('auth:unauthorized', handleUnauthorized)
   }, [])
 
   /**

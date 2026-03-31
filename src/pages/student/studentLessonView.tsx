@@ -1,20 +1,27 @@
 /**
  * studentLessonView.tsx
  *
- * Shows the content of a specific lesson.
+ * Shows the content of a specific lesson as ordered blocks.
  * Student can mark the lesson as complete which awards XP and checks for badges.
  *
  * Endpoints:
- *   GET  /api/enrollment/all-subjects     → get lesson content from subject
- *   GET  /api/progress                    → check if lesson already completed
- *   POST /api/gamification/complete       → mark complete, earn XP, check badges
+ *   GET  /api/enrollment/all-subjects → get lesson with blocks from subject
+ *   GET  /api/progress                → check if lesson already completed
+ *   POST /api/gamification/complete   → mark complete, earn XP, check badges
+ *
+ * Block types rendered:
+ *   text  → dangerouslySetInnerHTML (rich text HTML)
+ *   image → <img> tag
+ *   video → YouTube embed via iframe
+ *   file  → download link with file type label
+ *   math  → plain text expression (MathJax/KaTeX in UI pass)
  */
 
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { Subject, Progress, Lesson } from '../../types'
+import type { Subject, Progress, Lesson, LessonBlock } from '../../types'
 
 interface CompleteResponse {
   message: string
@@ -22,6 +29,68 @@ interface CompleteResponse {
   totalXP: number
   level: number
   newBadges: { id: number; name: string; description: string }[]
+}
+
+/**
+ * Renders a single block based on its type.
+ * Each type has its own rendering logic.
+ */
+function BlockRenderer({ block }: { block: LessonBlock }) {
+  const data = block.data as Record<string, string>
+
+  switch (block.type) {
+    case 'text':
+      // dangerouslySetInnerHTML renders rich text HTML from the editor
+      return <div dangerouslySetInnerHTML={{ __html: data.html }} />
+
+    case 'image':
+      return (
+        <div>
+          <img src={data.url} alt={data.alt} style={{ maxWidth: '100%' }} />
+          {data.alt && <p>{data.alt}</p>}
+        </div>
+      )
+
+    case 'video': {
+      // Convert YouTube watch URL to embed URL
+      // https://youtube.com/watch?v=ID → https://youtube.com/embed/ID
+      const embedUrl = data.url
+        .replace('watch?v=', 'embed/')
+        .replace('youtu.be/', 'youtube.com/embed/')
+      return (
+        <div>
+          {data.title && <p>{data.title}</p>}
+          <iframe
+            src={embedUrl}
+            width="100%"
+            height="400"
+            allowFullScreen
+            title={data.title}
+          />
+        </div>
+      )
+    }
+
+    case 'file':
+      return (
+        <div>
+          <a href={data.url} target="_blank" rel="noopener noreferrer">
+            📎 {data.name} ({data.fileType.toUpperCase()})
+          </a>
+        </div>
+      )
+
+    case 'math':
+      // Plain text for now — will be replaced with KaTeX in UI pass
+      return (
+        <div>
+          <code>{data.expression}</code>
+        </div>
+      )
+
+    default:
+      return <div>Unknown block type: {block.type}</div>
+  }
 }
 
 export default function StudentLessonView() {
@@ -102,9 +171,19 @@ export default function StudentLessonView() {
 
       <h1>{lesson.title}</h1>
 
-      {/* Lesson content */}
+      {/* Render blocks in order */}
       <div>
-        <p>{lesson.content}</p>
+        {lesson.blocks && lesson.blocks.length > 0 ? (
+          lesson.blocks
+            .sort((a, b) => a.order - b.order)
+            .map(block => (
+              <div key={block.id}>
+                <BlockRenderer block={block} />
+              </div>
+            ))
+        ) : (
+          <p>No content yet.</p>
+        )}
       </div>
 
       {/* Reward feedback after completing */}
