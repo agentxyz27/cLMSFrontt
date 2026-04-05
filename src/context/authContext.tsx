@@ -20,6 +20,11 @@
  *   Listens for 'auth:unauthorized' event fired by api.ts.
  *   When received, clears all auth state and forces logout.
  *   This handles expired tokens mid-session without user action.
+ *
+ * User Identity:
+ *   After login or app load, fetches GET /api/auth/me to get name and email.
+ *   JWT only contains id and role — /me fills in the rest.
+ *   If /me fails, basic user from token is still set — app still works.
  */
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
@@ -61,8 +66,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   /**
+   * Fetches full user profile from GET /api/auth/me.
+   * Called after login and after restoring token from localStorage.
+   * Fills in name and email which are not stored in the JWT.
+   * If the request fails, the basic user from the token remains set.
+   */
+  async function fetchMe(token: string) {
+    try {
+      const res = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      if (!res.ok) return
+      const data = await res.json()
+      setUser({
+        id: String(data.id),
+        name: data.name,
+        email: data.email,
+        role: data.role
+      })
+    } catch {
+      // Silently fail — basic user from token is still set
+    }
+  }
+
+  /**
    * On app load — restore token from localStorage if it exists.
    * This keeps the user logged in after a page refresh.
+   * Fetches /api/auth/me to restore name and email as well.
    * If the token is invalid or expired, it is cleared from localStorage.
    */
   useEffect(() => {
@@ -70,8 +100,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (stored) {
       try {
         const decoded = jwtDecode<{ id: string; role: 'student' | 'teacher' }>(stored)
+        // Set basic user first so ProtectedRoute doesn't block while /me loads
         setUser({ id: decoded.id, name: '', email: '', role: decoded.role })
         setToken(stored)
+        // Fetch full profile to restore name and email
+        fetchMe(stored)
       } catch {
         // Token is invalid or expired — clear it
         localStorage.removeItem('token')
@@ -100,17 +133,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Called after a successful login API response.
    * Register does not return a token — it redirects to /login instead.
    * Decodes the JWT to extract id and role, stores both in context state.
-   * Components reading useAuth() will immediately see the new values.
+   * Fetches /api/auth/me to fill in name and email immediately after login.
    */
   function login(token: string) {
     const decoded = jwtDecode<{ id: string; role: 'student' | 'teacher' }>(token)
-    // name and email are empty — backend token only contains id and role
-    // to fill these, either add them to the JWT payload on the backend
-    // or make a GET /api/auth/me endpoint after login
+    // Set basic user first so redirect happens immediately
     setUser({ id: decoded.id, name: '', email: '', role: decoded.role })
     setToken(token)
     // Persist token so refresh doesn't log the user out
     localStorage.setItem('token', token)
+    // Fetch full profile to get name and email
+    fetchMe(token)
   }
 
   /**

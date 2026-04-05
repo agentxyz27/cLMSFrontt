@@ -51,7 +51,7 @@ export default function StudentDashboard() {
 
   return (
     <div>
-      <h1>Welcome, {user?.id}</h1>
+      <h1>Welcome, {user?.name || 'Student'}</h1>
 
       {/* XP Summary */}
       <div>

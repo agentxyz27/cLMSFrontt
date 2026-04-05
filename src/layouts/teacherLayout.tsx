@@ -14,7 +14,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authContext'
 
 export default function TeacherLayout() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
 
   function handleLogout() {
@@ -25,7 +25,7 @@ export default function TeacherLayout() {
   return (
     <div>
       <aside>
-        <p>Teacher Sidebar</p>
+        <p>{user?.name}</p>
 
         <nav>
           <button onClick={() => navigate('/teacher/dashboard')}>Dashboard</button>

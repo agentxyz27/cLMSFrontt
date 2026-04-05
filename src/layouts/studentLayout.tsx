@@ -17,7 +17,7 @@ import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/authContext'
 
 export default function StudentLayout() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
   const navigate = useNavigate()
 
   function handleLogout() {
@@ -28,7 +28,7 @@ export default function StudentLayout() {
   return (
     <div>
       <aside>
-        <p>Student Sidebar</p>
+        <p>{user?.name}</p>
 
         <nav>
           <button onClick={() => navigate('/student/dashboard')}>Dashboard</button>
