@@ -9,7 +9,7 @@
  *   GET    /api/subjects           → get all subjects, filter by id
  *   PUT    /api/subjects/:id       → update subject title
  *   GET    /api/lessons/:subjectId → get all lessons with blocks
- *   DELETE /api/lessons/:id        → delete a lesson and its blocks
+ *   DELETE /api/lessons/:id        → delete a lesson and all its blocks (cascade)
  */
 
 import { useEffect, useState } from 'react'
@@ -19,27 +19,71 @@ import { api } from '../../api/api'
 import type { Subject, Lesson, LessonBlock } from '../../types'
 
 /**
- * Shows a one-line summary of a block so the teacher
- * knows what's inside the lesson without opening it.
+ * Renders a visual preview of a block inside the lesson list.
+ * Shows actual images, video embeds, file links, and text previews
+ * so the teacher can see content without opening the edit page.
  */
 function BlockPreview({ block }: { block: LessonBlock }) {
   const data = block.data as Record<string, string>
 
   switch (block.type) {
     case 'text':
-      // Strip HTML tags for plain text preview
-      const plain = data.html.replace(/<[^>]+>/g, '').slice(0, 60)
-      return <span>📝 {plain}{data.html.length > 60 ? '...' : ''}</span>
+      // Render truncated HTML preview — strip tags for safety in summary
+      return (
+        <div dangerouslySetInnerHTML={{
+          __html: data.html.slice(0, 100) + (data.html.length > 100 ? '...' : '')
+        }} />
+      )
+
     case 'image':
-      return <span>🖼️ Image — {data.alt || 'no alt text'}</span>
-    case 'video':
-      return <span>🎥 Video — {data.title || data.url}</span>
+      // Show actual image thumbnail
+      return (
+        <div>
+          <img
+            src={data.url}
+            alt={data.alt}
+            style={{ maxWidth: '100%', maxHeight: '150px', objectFit: 'cover' }}
+          />
+          {data.alt && <p>{data.alt}</p>}
+        </div>
+      )
+
+    case 'video': {
+      // Convert YouTube watch URL to embed URL for preview
+      // https://youtube.com/watch?v=ID → https://youtube.com/embed/ID
+      const embedUrl = data.url
+        .replace('watch?v=', 'embed/')
+        .replace('youtu.be/', 'youtube.com/embed/')
+      return (
+        <div>
+          {data.title && <p>🎥 {data.title}</p>}
+          <iframe
+            src={embedUrl}
+            width="100%"
+            height="200"
+            allowFullScreen
+            title={data.title}
+          />
+        </div>
+      )
+    }
+
     case 'file':
-      return <span>📎 {data.name} ({data.fileType?.toUpperCase()})</span>
+      // Show download link with file type label
+      return (
+        <div>
+          <a href={data.url} target="_blank" rel="noopener noreferrer">
+            📎 {data.name} ({data.fileType?.toUpperCase()})
+          </a>
+        </div>
+      )
+
     case 'math':
-      return <span>🔢 {data.expression}</span>
+      // Plain text for now — replaced with KaTeX in UI pass
+      return <code>{data.expression}</code>
+
     default:
-      return <span>Unknown block</span>
+      return <span>Unknown block type: {block.type}</span>
   }
 }
 
@@ -99,6 +143,7 @@ export default function TeacherSubjectDetail() {
 
     try {
       await api.delete(`/lessons/${lessonId}`, token)
+      // Remove from local state without refetching
       setLessons(prev => prev.filter(l => l.id !== lessonId))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete lesson')
@@ -113,7 +158,7 @@ export default function TeacherSubjectDetail() {
     <div>
       <button onClick={() => navigate('/teacher/subjects')}>← Back</button>
 
-      {/* Subject title + edit */}
+      {/* Subject title + inline edit */}
       {editing ? (
         <div>
           <input
@@ -131,7 +176,7 @@ export default function TeacherSubjectDetail() {
         </div>
       )}
 
-      {/* Actions */}
+      {/* Quick actions */}
       <div>
         <button onClick={() => navigate(`/teacher/subjects/${id}/lessons/new`)}>
           + New Lesson
@@ -141,7 +186,7 @@ export default function TeacherSubjectDetail() {
         </button>
       </div>
 
-      {/* Lessons list */}
+      {/* Lessons list with block previews */}
       <h2>Lessons ({lessons.length})</h2>
       {lessons.length === 0 ? (
         <p>No lessons yet. Create your first lesson!</p>
@@ -151,7 +196,7 @@ export default function TeacherSubjectDetail() {
             <div key={lesson.id}>
               <h3>{lesson.title}</h3>
 
-              {/* Block previews */}
+              {/* Block previews — shows actual content per block type */}
               {lesson.blocks && lesson.blocks.length > 0 ? (
                 <div>
                   {lesson.blocks

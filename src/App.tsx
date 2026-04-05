@@ -51,6 +51,8 @@ import StudentCourseDetail from './pages/student/studentCourseDetail'
 import StudentLessonView from './pages/student/studentLessonView'
 import StudentProgress from './pages/student/studentProgress'
 import StudentBadges from './pages/student/studentBadges'
+import StudentLeaderboard from './pages/student/studentLeaderboard'
+
 import TeacherSubjects from './pages/teacher/teacherSubjects'
 import TeacherSubjectNew from './pages/teacher/teacherSubjectNew'
 import TeacherSubjectDetail from './pages/teacher/teacherSubjectDetail'
@@ -81,6 +83,7 @@ function App() {
             <Route path="courses/:id/lessons/:lessonId" element={<StudentLessonView />} />
             <Route path="progress" element={<StudentProgress />} />
             <Route path="badges" element={<StudentBadges />} />
+            <Route path="leaderboard" element={<StudentLeaderboard />} />
             {/* add student pages here */}
           </Route>
         </Route>
