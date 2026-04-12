@@ -339,7 +339,7 @@ export default function TeacherLessonEdit() {
 
       {/* Block type selector */}
       <div>
-        {(['text', 'image', 'video', 'file', 'math'] as BlockType[]).map(type => (
+        {(['text', 'image', 'video', 'file', 'quiz'] as BlockType[]).map(type => (
           <button
             key={type}
             onClick={() => setBlockType(type)}
@@ -405,7 +405,7 @@ export default function TeacherLessonEdit() {
         {blockType === 'math' && (
           <input
             type="text"
-            placeholder="Math expression e.g. 2 + 3 = 5"
+            placeholder="insert quiz question here"
             value={mathExpression}
             onChange={e => setMathExpression(e.target.value)}
           />
