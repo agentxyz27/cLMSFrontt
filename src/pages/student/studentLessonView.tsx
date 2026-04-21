@@ -1,27 +1,24 @@
 /**
  * studentLessonView.tsx
  *
- * Shows the content of a specific lesson as ordered blocks.
+ * Shows the content of a specific lesson as a canvas.
  * Student can mark the lesson as complete which awards XP and checks for badges.
  *
- * Endpoints:
- *   GET  /api/enrollment/all-subjects → get lesson with blocks from subject
- *   GET  /api/progress                → check if lesson already completed
- *   POST /api/gamification/complete   → mark complete, earn XP, check badges
+ * The lesson content is rendered from contentJson (canvas JSON) using
+ * absolute positioned HTML elements that mirror the teacher's canvas layout.
+ * The canvas is scaled to fit the student's screen width.
  *
- * Block types rendered:
- *   text  → dangerouslySetInnerHTML (rich text HTML)
- *   image → <img> tag
- *   video → YouTube embed via iframe
- *   file  → download link with file type label
- *   math  → plain text expression (MathJax/KaTeX in UI pass)
+ * Endpoints:
+ *   GET  /api/lessons/lesson/:id    → load full lesson with contentJson
+ *   GET  /api/progress              → check if lesson already completed
+ *   POST /api/gamification/complete → mark complete, earn XP, check badges
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { Subject, Progress, Lesson, LessonBlock } from '../../types'
+import type { Lesson, CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps, Progress } from '../../types'
 
 interface CompleteResponse {
   message: string
@@ -31,70 +28,77 @@ interface CompleteResponse {
   newBadges: { id: number; name: string; description: string }[]
 }
 
-/**
- * Renders a single block based on its type.
- * Each type has its own rendering logic.
- */
-function BlockRenderer({ block }: { block: LessonBlock }) {
-  const data = block.data as Record<string, string>
+// ── Canvas element renderers ───────────────────────────────────────────────
 
-  switch (block.type) {
-    case 'text':
-      // dangerouslySetInnerHTML renders rich text HTML from the editor
-      return <div dangerouslySetInnerHTML={{ __html: data.html }} />
-
-    case 'image':
-      return (
-        <div>
-          <img src={data.url} alt={data.alt} style={{ maxWidth: '100%' }} />
-          {data.alt && <p>{data.alt}</p>}
-        </div>
-      )
-
-    case 'video': {
-      // Convert YouTube watch URL to embed URL
-      // https://youtube.com/watch?v=ID → https://youtube.com/embed/ID
-      const embedUrl = data.url
-        .replace('watch?v=', 'embed/')
-        .replace('youtu.be/', 'youtube.com/embed/')
-      return (
-        <div>
-          {data.title && <p>{data.title}</p>}
-          <iframe
-            src={embedUrl}
-            width="100%"
-            height="400"
-            allowFullScreen
-            title={data.title}
-          />
-        </div>
-      )
-    }
-
-    case 'file':
-      return (
-        <div>
-          <a href={data.url} target="_blank" rel="noopener noreferrer">
-            📎 {data.name} ({data.fileType.toUpperCase()})
-          </a>
-        </div>
-      )
-
-    case 'math':
-      // Plain text for now — will be replaced with KaTeX in UI pass
-      return (
-        <div>
-          <code>{data.expression}</code>
-        </div>
-      )
-
-    default:
-      return <div>Unknown block type: {block.type}</div>
-  }
+function TextRenderer({ element }: { element: CanvasElement }) {
+  const p = element.props as TextElementProps
+  return (
+    <div style={{
+      position: 'absolute',
+      left: element.x,
+      top: element.y,
+      width: element.width,
+      height: element.height,
+      fontSize: p.fontSize,
+      color: p.color,
+      fontStyle: p.fontStyle === 'italic' ? 'italic' : 'normal',
+      fontWeight: p.fontStyle === 'bold' ? 'bold' : 'normal',
+      textAlign: p.align || 'left',
+      overflow: 'hidden',
+      whiteSpace: 'pre-wrap',
+      wordBreak: 'break-word'
+    }}>
+      {p.text}
+    </div>
+  )
 }
 
+function ImageRenderer({ element }: { element: CanvasElement }) {
+  const p = element.props as ImageElementProps
+  return (
+    <img
+      src={p.url}
+      alt={p.alt}
+      style={{
+        position: 'absolute',
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        objectFit: 'contain'
+      }}
+    />
+  )
+}
+
+function ShapeRenderer({ element }: { element: CanvasElement }) {
+  const p = element.props as ShapeElementProps
+  const isEllipse = p.shape === 'ellipse'
+  return (
+    <div style={{
+      position: 'absolute',
+      left: element.x,
+      top: element.y,
+      width: element.width,
+      height: element.height,
+      background: p.fill,
+      border: `${p.strokeWidth}px solid ${p.stroke}`,
+      borderRadius: isEllipse ? '50%' : '0'
+    }} />
+  )
+}
+
+function CanvasElementRenderer({ element }: { element: CanvasElement }) {
+  if (element.type === 'text')  return <TextRenderer element={element} />
+  if (element.type === 'image') return <ImageRenderer element={element} />
+  if (element.type === 'shape') return <ShapeRenderer element={element} />
+  return null
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
+
 export default function StudentLessonView() {
-  const { token } = useAuth()
+  const { token, loading: authLoading } = useAuth()
   const { id, lessonId } = useParams()
   const navigate = useNavigate()
 
@@ -105,34 +109,25 @@ export default function StudentLessonView() {
   const [completing, setCompleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Used to scale the canvas to fit the student's screen
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scale, setScale] = useState(1)
+
   useEffect(() => {
+    if (authLoading || !token) return
+
     async function fetchData() {
       try {
-        const [subjects, progressRes] = await Promise.all([
-          api.get<Subject[]>('/enrollment/all-subjects', token),
+        const [lessonRes, progressRes] = await Promise.all([
+          api.get<Lesson>(`/lessons/lesson/${lessonId}`, token),
           api.get<Progress[]>('/progress', token)
         ])
 
-        // Find the subject
-        const subject = subjects.find(s => s.id === Number(id))
-        if (!subject) {
-          setError('Subject not found')
-          return
-        }
-
-        // Find the lesson
-        const found = subject.lessons.find(l => l.id === Number(lessonId))
-        if (!found) {
-          setError('Lesson not found')
-          return
-        }
-
-        // Check if already completed
         const isCompleted = progressRes.some(
           p => p.lessonId === Number(lessonId) && p.completed
         )
 
-        setLesson(found)
+        setLesson(lessonRes)
         setCompleted(isCompleted)
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Failed to load lesson')
@@ -142,7 +137,15 @@ export default function StudentLessonView() {
     }
 
     fetchData()
-  }, [token, id, lessonId])
+  }, [token, authLoading, lessonId])
+
+  // Scale canvas to fit container width
+  useEffect(() => {
+    if (!lesson?.contentJson || !containerRef.current) return
+    const containerWidth = containerRef.current.offsetWidth
+    const canvasWidth = lesson.contentJson.canvas.width
+    setScale(Math.min(1, containerWidth / canvasWidth))
+  }, [lesson])
 
   async function handleComplete() {
     setCompleting(true)
@@ -161,32 +164,40 @@ export default function StudentLessonView() {
     }
   }
 
-  if (loading) return <div>Loading...</div>
-  if (error) return <div>Error: {error}</div>
+  if (authLoading || loading) return <div>Loading...</div>
+  if (error)  return <div>Error: {error}</div>
   if (!lesson) return <div>Lesson not found</div>
+
+  const canvasData = lesson.contentJson
 
   return (
     <div>
-      <button onClick={() => navigate(`/student/courses/${id}`)}>← Back</button>
-
+      <button onClick={() => navigate(`/student/classrooms/${id}`)}>← Back</button>
       <h1>{lesson.title}</h1>
 
-      {/* Render blocks in order */}
-      <div>
-        {lesson.blocks && lesson.blocks.length > 0 ? (
-          lesson.blocks
-            .sort((a, b) => a.order - b.order)
-            .map(block => (
-              <div key={block.id}>
-                <BlockRenderer block={block} />
-              </div>
-            ))
+      {/* Canvas viewer */}
+      <div ref={containerRef} style={{ width: '100%', overflowX: 'auto' }}>
+        {canvasData ? (
+          <div style={{
+            position: 'relative',
+            width: canvasData.canvas.width,
+            height: canvasData.canvas.height,
+            background: canvasData.canvas.background,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top left',
+            // Collapse the scaled-down space so page doesn't scroll into blank area
+            marginBottom: canvasData.canvas.height * (scale - 1)
+          }}>
+            {canvasData.elements.map(el => (
+              <CanvasElementRenderer key={el.id} element={el} />
+            ))}
+          </div>
         ) : (
           <p>No content yet.</p>
         )}
       </div>
 
-      {/* Reward feedback after completing */}
+      {/* Reward feedback */}
       {reward && (
         <div>
           <p>+{reward.xpEarned} XP earned!</p>

@@ -6,19 +6,31 @@
  *
  * Flow:
  *   1. User selects role (teacher or student)
- *   2. Fills in the form (student has extra LRN field)
- *   3. POST to /api/auth/register or /api/auth/student/register
+ *   2. Fills in the form
+ *      - Student: extra LRN field + section dropdown (grade → section)
+ *   3. POST to /api/auth/register/teacher or /api/auth/register/student
  *   4. On success → redirect to /login
  *   5. No auto-login — user must login manually after registering
  *
  * Endpoints:
- *   Teacher → POST /api/auth/register        { name, email, password }
- *   Student → POST /api/auth/student/register { name, email, password, lrn }
+ *   Teacher → POST /api/auth/register/teacher { name, email, password }
+ *   Student → POST /api/auth/register/student { name, email, password, lrn, sectionId }
+ *   Public  → GET  /api/sections              { id, level, sections: [{ id, name }] }
  */
-
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../../api/api'
+
+interface SectionOption {
+  id: number
+  name: string
+}
+
+interface GradeOption {
+  id: number
+  level: number
+  sections: SectionOption[]
+}
 
 export default function Register() {
   const navigate = useNavigate()
@@ -28,22 +40,36 @@ export default function Register() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [lrn, setLrn] = useState('')
+  const [sectionId, setSectionId] = useState('')
+  const [grades, setGrades] = useState<GradeOption[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [sectionsLoading, setSectionsLoading] = useState(false)
+
+  // Fetch sections when student role is selected
+  useEffect(() => {
+    if (role !== 'student') return
+    setSectionsLoading(true)
+    api.get<GradeOption[]>('/sections')
+      .then(res => setGrades(res))
+      .catch(() => setError('Failed to load sections'))
+      .finally(() => setSectionsLoading(false))
+  }, [role])
 
   async function handleSubmit() {
     setError(null)
     setLoading(true)
-
     try {
       if (role === 'teacher') {
-        await api.post('/auth/register', { name, email, password })
+        await api.post('/auth/register/teacher', { name, email, password })
       } else {
-        await api.post('/auth/student/register', { name, email, password, lrn })
+        if (!sectionId) {
+          setError('Please select a section')
+          setLoading(false)
+          return
+        }
+       await api.post('/auth/register/student', { name, email, password, lrn, sectionId })
       }
-
-      // No auto-login — backend returns no token on register
-      // Redirect to login so user authenticates fresh
       navigate('/login')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Registration failed')
@@ -87,14 +113,38 @@ export default function Register() {
           onChange={e => setPassword(e.target.value)}
         />
 
-        {/* LRN only for students */}
+        {/* Student-only fields */}
         {role === 'student' && (
-          <input
-            type="text"
-            placeholder="LRN (Learner Reference Number)"
-            value={lrn}
-            onChange={e => setLrn(e.target.value)}
-          />
+          <>
+            <input
+              type="text"
+              placeholder="LRN (12-digit Learner Reference Number)"
+              value={lrn}
+              onChange={e => setLrn(e.target.value)}
+              maxLength={12}
+            />
+
+            {/* Section dropdown grouped by grade */}
+            {sectionsLoading ? (
+              <p>Loading sections...</p>
+            ) : (
+              <select
+                value={sectionId}
+                onChange={e => setSectionId(e.target.value)}
+              >
+                <option value=''>Select your section</option>
+                {grades.map(grade => (
+                  <optgroup key={grade.id} label={`Grade ${grade.level}`}>
+                    {grade.sections.map(section => (
+                      <option key={section.id} value={section.id}>
+                        {section.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
+          </>
         )}
 
         <button onClick={handleSubmit} disabled={loading}>
@@ -102,10 +152,8 @@ export default function Register() {
         </button>
       </div>
 
-      {/* Error */}
       {error && <p>{error}</p>}
 
-      {/* Login link */}
       <p>Already have an account? <a href="/login">Login</a></p>
     </div>
   )

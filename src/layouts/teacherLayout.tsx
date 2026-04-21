@@ -29,7 +29,7 @@ export default function TeacherLayout() {
 
         <nav>
           <button onClick={() => navigate('/teacher/dashboard')}>Dashboard</button>
-          <button onClick={() => navigate('/teacher/subjects')}>Subjects</button>
+          <button onClick={() => navigate('/teacher/templates')}>Templates</button>
         </nav>
 
         <button onClick={handleLogout}>Logout</button>

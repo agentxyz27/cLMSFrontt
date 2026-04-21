@@ -32,7 +32,6 @@ export default function StudentLayout() {
 
         <nav>
           <button onClick={() => navigate('/student/dashboard')}>Dashboard</button>
-          <button onClick={() => navigate('/student/courses')}>Courses</button>
           <button onClick={() => navigate('/student/progress')}>Progress</button>
           <button onClick={() => navigate('/student/badges')}>Badges</button>
           <button onClick={() => navigate('/student/leaderboard')}>Leaderboard</button>

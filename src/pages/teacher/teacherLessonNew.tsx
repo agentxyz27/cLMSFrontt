@@ -1,75 +1,90 @@
 /**
  * teacherLessonNew.tsx
  *
- * Form to create a new lesson and add content blocks.
- *
- * Flow:
- *   1. Teacher enters lesson title
- *   2. Lesson is created via POST /api/lessons
- *   3. Teacher adds blocks one by one (text, image, video, file, math)
- *   4. Each block is saved via POST /api/blocks
- *   5. Teacher navigates back to subject detail when done
+ * Three-step flow:
+ *   Step 1 — Teacher enters a lesson title
+ *   Step 2 — Teacher chooses: blank canvas or use a template
+ *   Step 3 — Canvas editor opens
  *
  * Endpoints:
- *   POST /api/lessons → create lesson (title only)
- *   POST /api/blocks  → add a block to the lesson
- *   POST /api/upload  → upload a file, returns public URL
+ *   POST /api/lessons           → create lesson (title + classRoomId)
+ *   GET  /api/templates         → fetch public templates for selection
+ *   POST /api/templates/:id/use → create lesson from template
+ *   PUT  /api/lessons/:id       → save canvas JSON (handled inside CanvasEditor)
  */
-
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { BlockType, LessonBlock } from '../../types'
+import CanvasEditor from '../../components/editor/canvasEditor'
+import CanvasPreview from '../../components/editor/canvasPreview'
+import type { CanvasData } from '../../types'
 
 interface CreatedLesson {
   id: number
   title: string
 }
 
+interface Template {
+  id: number
+  title: string
+  usageCount: number
+  teacher: { id: number; name: string } | null
+  contentJson?: CanvasData
+}
+
+type Step = 'title' | 'choose' | 'editor'
+
 export default function TeacherLessonNew() {
   const { token } = useAuth()
-  const { id } = useParams()
+  const { id } = useParams()  // classRoomId from route
   const navigate = useNavigate()
 
-  // Step 1 — lesson creation
+  const [step, setStep] = useState<Step>('title')
   const [title, setTitle] = useState('')
   const [lesson, setLesson] = useState<CreatedLesson | null>(null)
   const [creating, setCreating] = useState(false)
-
-  // Step 2 — block adding
-  const [blocks, setBlocks] = useState<LessonBlock[]>([])
-  const [blockType, setBlockType] = useState<BlockType>('text')
-  const [addingBlock, setAddingBlock] = useState(false)
-  const [uploading, setUploading] = useState(false)
-
-  // Block field states
-  const [textHtml, setTextHtml] = useState('')
-  const [imageAlt, setImageAlt] = useState('')
-  const [videoUrl, setVideoUrl] = useState('')
-  const [videoTitle, setVideoTitle] = useState('')
-  const [mathExpression, setMathExpression] = useState('')
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
-
   const [error, setError] = useState<string | null>(null)
 
-  // Step 1 — create the lesson first, then add blocks
-  async function handleCreateLesson() {
+  // Template selection state
+  const [templates, setTemplates] = useState<Template[]>([])
+  const [templatesLoading, setTemplatesLoading] = useState(false)
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
+  const [using, setUsing] = useState(false)
+
+  const handleTitleNext = () => {
     if (!title.trim()) {
       setError('Title is required')
       return
     }
+    setError(null)
+    fetchTemplates()
+    setStep('choose')
+  }
 
+  const fetchTemplates = async () => {
+    setTemplatesLoading(true)
+    try {
+      const res = await api.get<Template[]>('/templates', token)
+      setTemplates(res)
+    } catch {
+      // silently fail — blank canvas still available
+    } finally {
+      setTemplatesLoading(false)
+    }
+  }
+
+  const handleBlankCanvas = async () => {
     setCreating(true)
     setError(null)
-
     try {
       const res = await api.post<{ lesson: CreatedLesson }>(
         '/lessons',
-        { title, subjectId: Number(id) },
+        { title, classRoomId: Number(id) },
         token
       )
       setLesson(res.lesson)
+      setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson')
     } finally {
@@ -77,225 +92,133 @@ export default function TeacherLessonNew() {
     }
   }
 
-  // Upload file to Supabase Storage, returns { url, name, fileType }
-  async function uploadFile(file: File) {
-    const formData = new FormData()
-    formData.append('file', file)
-
-    const res = await fetch('/api/upload', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`
-        // No Content-Type here — browser sets it automatically for FormData
-      },
-      body: formData
-    })
-
-    if (!res.ok) {
-      const err = await res.json()
-      throw new Error(err.message || 'Upload failed')
-    }
-
-    return res.json()
-  }
-
-  // Step 2 — add a block to the lesson
-  async function handleAddBlock() {
-    if (!lesson) return
-
-    setAddingBlock(true)
+  const handleUseTemplate = async () => {
+    if (!selectedTemplate) return
+    setUsing(true)
     setError(null)
-
     try {
-      let data: Record<string, string> = {}
-
-      // Build data payload based on block type
-      switch (blockType) {
-        case 'text':
-          if (!textHtml.trim()) throw new Error('Text content is required')
-          data = { html: textHtml }
-          break
-
-        case 'image':
-          if (!selectedFile) throw new Error('Please select an image')
-          setUploading(true)
-          const imgUpload = await uploadFile(selectedFile)
-          data = { url: imgUpload.url, alt: imageAlt || selectedFile.name }
-          setUploading(false)
-          break
-
-        case 'video':
-          if (!videoUrl.trim()) throw new Error('Video URL is required')
-          data = { url: videoUrl, title: videoTitle }
-          break
-
-        case 'file':
-          if (!selectedFile) throw new Error('Please select a file')
-          setUploading(true)
-          const fileUpload = await uploadFile(selectedFile)
-          data = { url: fileUpload.url, name: fileUpload.name, fileType: fileUpload.fileType }
-          setUploading(false)
-          break
-
-        case 'math':
-          if (!mathExpression.trim()) throw new Error('Math expression is required')
-          data = { expression: mathExpression }
-          break
-      }
-
-      const res = await api.post<{ block: LessonBlock }>(
-        '/blocks',
-        { lessonId: lesson.id, type: blockType, data },
+      const res = await api.post<{ lesson: CreatedLesson }>(
+        `/templates/${selectedTemplate.id}/use`,
+        { classRoomId: Number(id), title },
         token
       )
-
-      // Add to local block list
-      setBlocks(prev => [...prev, res.block])
-
-      // Reset fields
-      setTextHtml('')
-      setImageAlt('')
-      setVideoUrl('')
-      setVideoTitle('')
-      setMathExpression('')
-      setSelectedFile(null)
-
+      setLesson(res.lesson)
+      setStep('editor')
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to add block')
-      setUploading(false)
+      setError(err instanceof Error ? err.message : 'Failed to create lesson from template')
     } finally {
-      setAddingBlock(false)
+      setUsing(false)
     }
   }
 
-  // ── Step 1 UI — create lesson ──────────────────────────────────────────
-  if (!lesson) {
+  // ── Step 1 — enter title ──────────────────────────────────────────────
+  if (step === 'title') {
     return (
       <div>
-        <button onClick={() => navigate(`/teacher/subjects/${id}`)}>← Back</button>
+        <button onClick={() => navigate(`/teacher/classrooms/${id}`)}>← Back</button>
         <h1>New Lesson</h1>
-
-        <div>
-          <input
-            type="text"
-            placeholder="Lesson title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-          <button onClick={handleCreateLesson} disabled={creating}>
-            {creating ? 'Creating...' : 'Create Lesson'}
-          </button>
-        </div>
-
-        {error && <p>{error}</p>}
+        <input
+          type="text"
+          placeholder="Lesson title"
+          value={title}
+          onChange={e => setTitle(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && handleTitleNext()}
+          autoFocus
+        />
+        <button onClick={handleTitleNext}>
+          Next →
+        </button>
+        {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
     )
   }
 
-  // ── Step 2 UI — add blocks ─────────────────────────────────────────────
-  return (
-    <div>
-      <button onClick={() => navigate(`/teacher/subjects/${id}`)}>← Done</button>
-
-      <h1>{lesson.title}</h1>
-
-      {/* Existing blocks */}
-      <h2>Blocks ({blocks.length})</h2>
-      {blocks.length === 0 ? (
-        <p>No blocks yet. Add your first block below.</p>
-      ) : (
-        <div>
-          {blocks.map((block, index) => (
-            <div key={block.id}>
-              <span>#{index + 1} — {block.type.toUpperCase()}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Add block form */}
-      <h2>Add Block</h2>
-
-      {/* Block type selector */}
+  // ── Step 2 — choose blank or template ─────────────────────────────────
+  if (step === 'choose') {
+    return (
       <div>
-        {(['text', 'image', 'video', 'file', 'math'] as BlockType[]).map(type => (
-          <button
-            key={type}
-            onClick={() => setBlockType(type)}
-            disabled={blockType === type}
-          >
-            {type}
+        <button onClick={() => setStep('title')}>← Back</button>
+        <h1>Choose a starting point</h1>
+        <p>Creating: <strong>{title}</strong></p>
+
+        {error && <p style={{ color: 'red' }}>{error}</p>}
+
+        {/* Blank canvas option */}
+        <div style={{ marginBottom: 24 }}>
+          <button onClick={handleBlankCanvas} disabled={creating}>
+            {creating ? 'Creating...' : '+ Start with blank canvas'}
           </button>
-        ))}
-      </div>
+        </div>
 
-      {/* Block fields — change based on type */}
-      <div>
-        {blockType === 'text' && (
-          <textarea
-            placeholder="Enter text content (HTML supported)"
-            value={textHtml}
-            onChange={e => setTextHtml(e.target.value)}
-            rows={6}
-          />
-        )}
-
-        {blockType === 'image' && (
-          <div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-            />
-            <input
-              type="text"
-              placeholder="Alt text (description)"
-              value={imageAlt}
-              onChange={e => setImageAlt(e.target.value)}
-            />
+        {/* Template options */}
+        <h2>Or choose a template</h2>
+        {templatesLoading ? (
+          <p>Loading templates...</p>
+        ) : templates.length === 0 ? (
+          <p>No public templates available yet.</p>
+        ) : (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+            {templates.map(template => (
+              <div
+                key={template.id}
+                onClick={() => setSelectedTemplate(
+                  selectedTemplate?.id === template.id ? null : template
+                )}
+                style={{
+                  cursor: 'pointer',
+                  border: selectedTemplate?.id === template.id
+                    ? '2px solid #3b82f6'
+                    : '1px solid #eee',
+                  borderRadius: 8,
+                  overflow: 'hidden',
+                  width: 260,
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                }}
+              >
+                <div style={{ pointerEvents: 'none' }}>
+                  {template.contentJson ? (
+                    <CanvasPreview contentJson={template.contentJson} previewWidth={260} />
+                  ) : (
+                    <div style={{
+                      width: 260, height: 146,
+                      background: '#f5f5f5',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <p style={{ color: '#999' }}>No preview</p>
+                    </div>
+                  )}
+                </div>
+                <div style={{ padding: '8px 12px' }}>
+                  <h3 style={{ margin: 0, fontSize: 14 }}>{template.title}</h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>
+                    By {template.teacher?.name ?? 'Unknown'} · Used {template.usageCount} times
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         )}
 
-        {blockType === 'video' && (
-          <div>
-            <input
-              type="text"
-              placeholder="YouTube URL e.g. https://youtube.com/watch?v=..."
-              value={videoUrl}
-              onChange={e => setVideoUrl(e.target.value)}
-            />
-            <input
-              type="text"
-              placeholder="Video title (optional)"
-              value={videoTitle}
-              onChange={e => setVideoTitle(e.target.value)}
-            />
+        {/* Confirm template use */}
+        {selectedTemplate && (
+          <div style={{ marginTop: 24 }}>
+            <p>Using: <strong>{selectedTemplate.title}</strong></p>
+            <button onClick={handleUseTemplate} disabled={using}>
+              {using ? 'Creating...' : 'Use this template →'}
+            </button>
           </div>
         )}
-
-        {blockType === 'file' && (
-          <input
-            type="file"
-            accept=".pdf,.xlsx,.xls"
-            onChange={e => setSelectedFile(e.target.files?.[0] || null)}
-          />
-        )}
-
-        {blockType === 'math' && (
-          <input
-            type="text"
-            placeholder="Math expression e.g. 2 + 3 = 5"
-            value={mathExpression}
-            onChange={e => setMathExpression(e.target.value)}
-          />
-        )}
       </div>
+    )
+  }
 
-      <button onClick={handleAddBlock} disabled={addingBlock || uploading}>
-        {uploading ? 'Uploading...' : addingBlock ? 'Adding...' : '+ Add Block'}
-      </button>
-
-      {error && <p>{error}</p>}
-    </div>
-  )
+  // ── Step 3 — canvas editor ────────────────────────────────────────────
+  return (
+    <CanvasEditor
+      lessonId={lesson!.id}
+      initial={null}
+      token={token}
+      onDone={() => navigate(`/teacher/classrooms/${id}`)}
+    />
+  ) 
 }

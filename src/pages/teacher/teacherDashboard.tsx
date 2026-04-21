@@ -1,73 +1,175 @@
-/**
- * teacherDashboard.tsx
- *
- * Main dashboard for logged-in teachers.
- * Shows all subjects they own with lesson counts.
- *
- * Endpoints:
- *   GET /api/subjects → all subjects owned by the logged-in teacher
- */
-
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
-import type { Subject } from '../../types'
+
+interface Grade {
+  id: number
+  level: number
+}
+
+interface Section {
+  id: number
+  name: string
+  grade: Grade
+}
+
+interface Subject {
+  id: number
+  name: string
+}
+
+interface ClassRoom {
+  id: number
+  teacherId: number
+  subjectId: number
+  sectionId: number
+  createdAt: string
+  subject: Subject
+  section: Section
+  _count: { lessons: number }
+}
+
+interface SectionOption {
+  id: number
+  level: number
+  sections: { id: number; name: string }[]
+}
 
 export default function TeacherDashboard() {
-  const { token, user } = useAuth()
+  const { token, user, loading: authLoading } = useAuth()
   const navigate = useNavigate()
 
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [classRooms, setClassRooms] = useState<ClassRoom[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Modal state
+  const [showModal, setShowModal] = useState(false)
+  const [sectionOptions, setSectionOptions] = useState<SectionOption[]>([])
+  const [selectedSubjectId, setSelectedSubjectId] = useState('')
+  const [selectedSectionId, setSelectedSectionId] = useState('')
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
   useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await api.get<Subject[]>('/subjects', token)
-        setSubjects(res)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load subjects')
-      } finally {
-        setLoading(false)
-      }
+    if (authLoading || !token) return
+    fetchClassRooms()
+  }, [token, authLoading])
+
+  const fetchClassRooms = async () => {
+    try {
+      const res = await api.get<ClassRoom[]>('/classrooms/mine', token)
+      setClassRooms(res)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load classrooms')
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchData()
-  }, [token])
+  const openModal = async () => {
+    setShowModal(true)
+    setCreateError(null)
+    setSelectedSubjectId('')
+    setSelectedSectionId('')
+    try {
+      const res = await api.get<SectionOption[]>('/sections', token)
+      setSectionOptions(res)
+    } catch {
+      setCreateError('Failed to load sections')
+    }
+  }
 
-  if (loading) return <div>Loading...</div>
+  const handleCreateClassRoom = async () => {
+    if (!selectedSubjectId || !selectedSectionId) {
+      setCreateError('Please select both a subject and a section')
+      return
+    }
+    setCreating(true)
+    setCreateError(null)
+    try {
+      await api.post('/classrooms', { subjectId: selectedSubjectId, sectionId: selectedSectionId }, token)
+      setShowModal(false)
+      await fetchClassRooms()
+    } catch (err: unknown) {
+      setCreateError(err instanceof Error ? err.message : 'Failed to create classroom')
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  if (authLoading || loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
+
+  const totalLessons = classRooms.reduce((sum, c) => sum + c._count.lessons, 0)
 
   return (
     <div>
       <h1>Welcome, {user?.name || 'Teacher'}</h1>
+      <p>Total Classrooms: {classRooms.length}</p>
+      <p>Total Lessons: {totalLessons}</p>
+      <button onClick={openModal}>+ New Classroom</button>
 
-      {/* Summary */}
-      <p>Total Subjects: {subjects.length}</p>
-      <p>Total Lessons: {subjects.reduce((sum, s) => sum + s.lessons.length, 0)}</p>
-
-      {/* Quick actions */}
-      <button onClick={() => navigate('/teacher/subjects/new')}>
-        + New Subject
-      </button>
-
-      {/* Subjects list */}
-      <h2>My Subjects</h2>
-      {subjects.length === 0 ? (
-        <p>No subjects yet. Create your first subject!</p>
+      <h2>My Classrooms</h2>
+      {classRooms.length === 0 ? (
+        <p>No classrooms yet. Create your first classroom!</p>
       ) : (
         <div>
-          {subjects.map(subject => (
-            <div key={subject.id}>
-              <h3>{subject.title}</h3>
-              <p>Lessons: {subject.lessons.length}</p>
-              <button onClick={() => navigate(`/teacher/subjects/${subject.id}`)}>
+          {classRooms.map(classRoom => (
+            <div key={classRoom.id}>
+              <h3>{classRoom.subject.name}</h3>
+              <p>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
+              <p>Lessons: {classRoom._count.lessons}</p>
+              <button onClick={() => navigate(`/teacher/classrooms/${classRoom.id}`)}>
                 Manage
               </button>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Create Classroom Modal */}
+      {showModal && (
+        <div>
+          <div>
+            <h2>Create Classroom</h2>
+
+            {/* Subject — only Math is unlocked for now */}
+            <label>Subject</label>
+            <select
+              value={selectedSubjectId}
+              onChange={e => setSelectedSubjectId(e.target.value)}
+            >
+              <option value=''>Select subject</option>
+              <option value='1'>Mathematics</option>
+            </select>
+
+            {/* Section — grouped by grade */}
+            <label>Section</label>
+            <select
+              value={selectedSectionId}
+              onChange={e => setSelectedSectionId(e.target.value)}
+            >
+              <option value=''>Select section</option>
+              {sectionOptions.map(grade => (
+                <optgroup key={grade.id} label={`Grade ${grade.level}`}>
+                  {grade.sections.map(section => (
+                    <option key={section.id} value={section.id}>
+                      {section.name}
+                    </option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+
+            {createError && <p>{createError}</p>}
+
+            <button onClick={() => setShowModal(false)}>Cancel</button>
+            <button onClick={handleCreateClassRoom} disabled={creating}>
+              {creating ? 'Creating...' : 'Create'}
+            </button>
+          </div>
         </div>
       )}
     </div>

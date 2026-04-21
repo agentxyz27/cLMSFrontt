@@ -54,7 +54,7 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const endpoint = role === 'teacher' ? '/auth/login' : '/auth/student/login'
+      const endpoint = role === 'teacher' ? '/auth/login/teacher' : '/auth/login/student'
       const res = await api.post<{ token: string }>(endpoint, { email, password })
 
       // Store token + decode user into context
