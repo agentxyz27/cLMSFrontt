@@ -37,16 +37,16 @@ type Step = 'title' | 'choose' | 'editor'
 
 export default function TeacherLessonNew() {
   const { token } = useAuth()
-  const { id } = useParams()  // classRoomId from route
+  const { id } = useParams()
   const navigate = useNavigate()
 
   const [step, setStep] = useState<Step>('title')
   const [title, setTitle] = useState('')
   const [lesson, setLesson] = useState<CreatedLesson | null>(null)
+  const [initialCanvas, setInitialCanvas] = useState<CanvasData | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Template selection state
   const [templates, setTemplates] = useState<Template[]>([])
   const [templatesLoading, setTemplatesLoading] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
@@ -84,6 +84,7 @@ export default function TeacherLessonNew() {
         token
       )
       setLesson(res.lesson)
+      setInitialCanvas(null)
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson')
@@ -103,6 +104,7 @@ export default function TeacherLessonNew() {
         token
       )
       setLesson(res.lesson)
+      setInitialCanvas(selectedTemplate.contentJson ?? null)
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson from template')
@@ -125,9 +127,7 @@ export default function TeacherLessonNew() {
           onKeyDown={e => e.key === 'Enter' && handleTitleNext()}
           autoFocus
         />
-        <button onClick={handleTitleNext}>
-          Next →
-        </button>
+        <button onClick={handleTitleNext}>Next →</button>
         {error && <p style={{ color: 'red' }}>{error}</p>}
       </div>
     )
@@ -143,14 +143,12 @@ export default function TeacherLessonNew() {
 
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
-        {/* Blank canvas option */}
         <div style={{ marginBottom: 24 }}>
           <button onClick={handleBlankCanvas} disabled={creating}>
             {creating ? 'Creating...' : '+ Start with blank canvas'}
           </button>
         </div>
 
-        {/* Template options */}
         <h2>Or choose a template</h2>
         {templatesLoading ? (
           <p>Loading templates...</p>
@@ -199,7 +197,6 @@ export default function TeacherLessonNew() {
           </div>
         )}
 
-        {/* Confirm template use */}
         {selectedTemplate && (
           <div style={{ marginTop: 24 }}>
             <p>Using: <strong>{selectedTemplate.title}</strong></p>
@@ -216,9 +213,9 @@ export default function TeacherLessonNew() {
   return (
     <CanvasEditor
       lessonId={lesson!.id}
-      initial={null}
+      initial={initialCanvas}
       token={token}
       onDone={() => navigate(`/teacher/classrooms/${id}`)}
     />
-  ) 
-}
+  )
+} 

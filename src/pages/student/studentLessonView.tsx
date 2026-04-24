@@ -4,16 +4,15 @@
  * Shows the content of a specific lesson as a canvas.
  * Student can mark the lesson as complete which awards XP and checks for badges.
  *
- * The lesson content is rendered from contentJson (canvas JSON) using
- * absolute positioned HTML elements that mirror the teacher's canvas layout.
- * The canvas is scaled to fit the student's screen width.
+ * Canvas is rendered using absolute positioned HTML elements.
+ * Matches the teacher's Konva editor output as closely as possible.
+ * Scaled to fit the student's screen width.
  *
  * Endpoints:
  *   GET  /api/lessons/lesson/:id    → load full lesson with contentJson
  *   GET  /api/progress              → check if lesson already completed
  *   POST /api/gamification/complete → mark complete, earn XP, check badges
  */
-
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
@@ -44,9 +43,11 @@ function TextRenderer({ element }: { element: CanvasElement }) {
       fontStyle: p.fontStyle === 'italic' ? 'italic' : 'normal',
       fontWeight: p.fontStyle === 'bold' ? 'bold' : 'normal',
       textAlign: p.align || 'left',
-      overflow: 'hidden',
+      overflow: 'hidden',        // clip at element bounds — matches Konva behavior
       whiteSpace: 'pre-wrap',
-      wordBreak: 'break-word'
+      wordBreak: 'break-word',
+      lineHeight: 1.2,
+      boxSizing: 'border-box'
     }}>
       {p.text}
     </div>
@@ -83,13 +84,14 @@ function ShapeRenderer({ element }: { element: CanvasElement }) {
       height: element.height,
       background: p.fill,
       border: `${p.strokeWidth}px solid ${p.stroke}`,
-      borderRadius: isEllipse ? '50%' : '0'
+      borderRadius: isEllipse ? '50%' : '0',
+      boxSizing: 'border-box'
     }} />
   )
 }
 
 function CanvasElementRenderer({ element }: { element: CanvasElement }) {
-  if (element.type === 'text')  return <TextRenderer element={element} />
+  if (element.type === 'text') return <TextRenderer element={element} />
   if (element.type === 'image') return <ImageRenderer element={element} />
   if (element.type === 'shape') return <ShapeRenderer element={element} />
   return null
@@ -109,24 +111,20 @@ export default function StudentLessonView() {
   const [completing, setCompleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Used to scale the canvas to fit the student's screen
   const containerRef = useRef<HTMLDivElement>(null)
   const [scale, setScale] = useState(1)
 
   useEffect(() => {
     if (authLoading || !token) return
-
     async function fetchData() {
       try {
         const [lessonRes, progressRes] = await Promise.all([
           api.get<Lesson>(`/lessons/lesson/${lessonId}`, token),
           api.get<Progress[]>('/progress', token)
         ])
-
         const isCompleted = progressRes.some(
           p => p.lessonId === Number(lessonId) && p.completed
         )
-
         setLesson(lessonRes)
         setCompleted(isCompleted)
       } catch (err: unknown) {
@@ -135,11 +133,9 @@ export default function StudentLessonView() {
         setLoading(false)
       }
     }
-
     fetchData()
   }, [token, authLoading, lessonId])
 
-  // Scale canvas to fit container width
   useEffect(() => {
     if (!lesson?.contentJson || !containerRef.current) return
     const containerWidth = containerRef.current.offsetWidth
@@ -165,7 +161,7 @@ export default function StudentLessonView() {
   }
 
   if (authLoading || loading) return <div>Loading...</div>
-  if (error)  return <div>Error: {error}</div>
+  if (error) return <div>Error: {error}</div>
   if (!lesson) return <div>Lesson not found</div>
 
   const canvasData = lesson.contentJson
@@ -176,17 +172,23 @@ export default function StudentLessonView() {
       <h1>{lesson.title}</h1>
 
       {/* Canvas viewer */}
-      <div ref={containerRef} style={{ width: '100%', overflowX: 'auto' }}>
+      <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden' }}>
         {canvasData ? (
           <div style={{
             position: 'relative',
             width: canvasData.canvas.width,
             height: canvasData.canvas.height,
             background: canvasData.canvas.background,
+            // Background image if present
+            ...(canvasData.canvas.backgroundImage ? {
+              backgroundImage: `url(${canvasData.canvas.backgroundImage})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            } : {}),
             transform: `scale(${scale})`,
             transformOrigin: 'top left',
-            // Collapse the scaled-down space so page doesn't scroll into blank area
-            marginBottom: canvasData.canvas.height * (scale - 1)
+            marginBottom: canvasData.canvas.height * (scale - 1),
+            overflow: 'hidden'
           }}>
             {canvasData.elements.map(el => (
               <CanvasElementRenderer key={el.id} element={el} />
