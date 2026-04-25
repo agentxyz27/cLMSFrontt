@@ -3,14 +3,19 @@
  *
  * Three-step flow:
  *   Step 1 — Teacher enters a lesson title
- *   Step 2 — Teacher chooses: blank canvas or use a template
- *   Step 3 — Canvas editor opens
+ *   Step 2 — Teacher chooses: blank lesson or use a template
+ *   Step 3 — Node-based canvas editor opens
+ *
+ * When using a template:
+ *   The template's CanvasData becomes the contentJson of the first
+ *   explanation node in a new LessonContent. Templates are single
+ *   canvas layouts — they get wrapped into a lesson node graph.
  *
  * Endpoints:
  *   POST /api/lessons           → create lesson (title + classRoomId)
  *   GET  /api/templates         → fetch public templates for selection
  *   POST /api/templates/:id/use → create lesson from template
- *   PUT  /api/lessons/:id       → save canvas JSON (handled inside CanvasEditor)
+ *   PUT  /api/lessons/:id       → save LessonContent (handled inside CanvasEditor)
  */
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -18,7 +23,8 @@ import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
 import CanvasEditor from '../../components/editor/canvasEditor'
 import CanvasPreview from '../../components/editor/canvasPreview'
-import type { CanvasData } from '../../types'
+import type { CanvasData, LessonContent } from '../../types'
+import { extractIdFromSlug } from '../../utils/slugify'
 
 interface CreatedLesson {
   id: number
@@ -37,13 +43,14 @@ type Step = 'title' | 'choose' | 'editor'
 
 export default function TeacherLessonNew() {
   const { token } = useAuth()
-  const { id } = useParams()
+  const { id: rawId } = useParams()
+  const id = String(extractIdFromSlug(rawId ?? ''))
   const navigate = useNavigate()
 
   const [step, setStep] = useState<Step>('title')
   const [title, setTitle] = useState('')
   const [lesson, setLesson] = useState<CreatedLesson | null>(null)
-  const [initialCanvas, setInitialCanvas] = useState<CanvasData | null>(null)
+  const [initialContent, setInitialContent] = useState<LessonContent | null>(null)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,13 +75,13 @@ export default function TeacherLessonNew() {
       const res = await api.get<Template[]>('/templates', token)
       setTemplates(res)
     } catch {
-      // silently fail — blank canvas still available
+      // silently fail — blank lesson still available
     } finally {
       setTemplatesLoading(false)
     }
   }
 
-  const handleBlankCanvas = async () => {
+  const handleBlankLesson = async () => {
     setCreating(true)
     setError(null)
     try {
@@ -84,7 +91,7 @@ export default function TeacherLessonNew() {
         token
       )
       setLesson(res.lesson)
-      setInitialCanvas(null)
+      setInitialContent(null) // editor will use BLANK_LESSON default
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson')
@@ -104,7 +111,30 @@ export default function TeacherLessonNew() {
         token
       )
       setLesson(res.lesson)
-      setInitialCanvas(selectedTemplate.contentJson ?? null)
+
+      // Wrap template CanvasData into a LessonContent with one explanation node
+      if (selectedTemplate.contentJson) {
+        const wrappedContent: LessonContent = {
+          nodes: [
+            {
+              id: 'node_1',
+              type: 'explanation',
+              contentJson: selectedTemplate.contentJson,
+              nextNodeId: null,
+              hintNodeId: null
+            }
+          ],
+          settings: {
+            passingScore: 70,
+            retryLimit: null,
+            badgeId: null
+          }
+        }
+        setInitialContent(wrappedContent)
+      } else {
+        setInitialContent(null)
+      }
+
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson from template')
@@ -144,8 +174,8 @@ export default function TeacherLessonNew() {
         {error && <p style={{ color: 'red' }}>{error}</p>}
 
         <div style={{ marginBottom: 24 }}>
-          <button onClick={handleBlankCanvas} disabled={creating}>
-            {creating ? 'Creating...' : '+ Start with blank canvas'}
+          <button onClick={handleBlankLesson} disabled={creating}>
+            {creating ? 'Creating...' : '+ Start with blank lesson'}
           </button>
         </div>
 
@@ -213,9 +243,9 @@ export default function TeacherLessonNew() {
   return (
     <CanvasEditor
       lessonId={lesson!.id}
-      initial={initialCanvas}
+      initial={initialContent}
       token={token}
       onDone={() => navigate(`/teacher/classrooms/${id}`)}
     />
   )
-} 
+}

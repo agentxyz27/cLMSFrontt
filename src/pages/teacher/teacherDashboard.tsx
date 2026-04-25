@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
+import { classRoomSlug } from '../../utils/slugify'
 
 interface Grade {
   id: number
@@ -121,7 +122,7 @@ export default function TeacherDashboard() {
               <h3>{classRoom.subject.name}</h3>
               <p>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
               <p>Lessons: {classRoom._count.lessons}</p>
-              <button onClick={() => navigate(`/teacher/classrooms/${classRoom.id}`)}>
+              <button onClick={() => navigate(`/teacher/classrooms/${classRoomSlug(classRoom.id, classRoom.subject.name, classRoom.section.name)}`)}>
                 Manage
               </button>
             </div>

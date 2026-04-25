@@ -60,6 +60,8 @@ export default function StudentClassroomDetail() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
           {lessons.map(lesson => {
             const isCompleted = completedLessonIds.has(lesson.id)
+            // Use first node's canvas as thumbnail
+            const firstNodeCanvas = lesson.contentJson?.nodes?.[0]?.contentJson
             return (
               <div
                 key={lesson.id}
@@ -71,18 +73,14 @@ export default function StudentClassroomDetail() {
                   boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
                 }}
               >
-                {/* Thumbnail */}
+                {/* Thumbnail — first node's canvas */}
                 <div style={{ pointerEvents: 'none', position: 'relative' }}>
-                  {lesson.contentJson ? (
-                    <CanvasPreview contentJson={lesson.contentJson} previewWidth={300} />
+                  {firstNodeCanvas ? (
+                    <CanvasPreview contentJson={firstNodeCanvas} previewWidth={300} />
                   ) : (
                     <div style={{
-                      width: 300,
-                      height: 169,
-                      background: '#f5f5f5',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
+                      width: 300, height: 169, background: '#f5f5f5',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
                     }}>
                       <p style={{ color: '#999' }}>No content yet</p>
                     </div>
@@ -90,15 +88,10 @@ export default function StudentClassroomDetail() {
                   {/* Completed badge overlay */}
                   {isCompleted && (
                     <div style={{
-                      position: 'absolute',
-                      top: 8,
-                      right: 8,
-                      background: '#22c55e',
-                      color: '#fff',
-                      borderRadius: 4,
-                      padding: '2px 8px',
-                      fontSize: 12,
-                      fontWeight: 'bold'
+                      position: 'absolute', top: 8, right: 8,
+                      background: '#22c55e', color: '#fff',
+                      borderRadius: 4, padding: '2px 8px',
+                      fontSize: 12, fontWeight: 'bold'
                     }}>
                       ✅ Done
                     </div>

@@ -14,6 +14,8 @@
  * - Lesson.subjectId → classRoomId
  * - Admin references removed — admin is now a privilege flag on Teacher
  * - Progress.lesson.subject → classRoom
+ * - LessonNode, QuizData, LessonSettings, LessonContent added — node graph system
+ * - Lesson.contentJson → LessonContent (node graph) instead of raw CanvasData
  */
 
 // ── Primitives ─────────────────────────────────────────────────────────────
@@ -122,13 +124,67 @@ export interface ClassRoom {
   _count?: { lessons: number }
 }
 
+// ── Lesson Node System ─────────────────────────────────────────────────────
+
+/**
+ * Node types:
+ *   explanation → teach a concept (canvas only)
+ *   example     → show a solved problem (canvas only)
+ *   quiz        → MCQ question with correct answer
+ *   hint        → shown when student answers wrong
+ *   result      → end of lesson, completion trigger
+ */
+export type LessonNodeType = 'explanation' | 'example' | 'quiz' | 'hint' | 'result'
+
+/**
+ * Quiz data — only present on quiz nodes.
+ */
+export interface QuizData {
+  question: string
+  choices: string[]
+  correctIndex: number  // index into choices array
+}
+
+/**
+ * A single node in the lesson graph.
+ * contentJson is the free-form canvas — teacher designs how it looks.
+ * nextNodeId — where to go by default (correct answer or end of node)
+ * hintNodeId — where to go on wrong answer (quiz nodes only)
+ */
+export interface LessonNode {
+  id: string                    // e.g. 'node_1'
+  type: LessonNodeType
+  contentJson: CanvasData       // free-form canvas for this node
+  quiz?: QuizData               // only present on quiz nodes
+  nextNodeId: string | null     // null = end of lesson
+  hintNodeId?: string | null    // only for quiz nodes
+}
+
+/**
+ * Lesson-level settings.
+ */
+export interface LessonSettings {
+  passingScore: number          // percentage e.g. 70
+  retryLimit: number | null     // null = unlimited retries
+  badgeId: number | null        // badge awarded on completion
+}
+
+/**
+ * Full lesson content stored in Lesson.contentJson.
+ * Replaces the old single CanvasData shape.
+ */
+export interface LessonContent {
+  nodes: LessonNode[]
+  settings: LessonSettings
+}
+
 // ── Lesson ─────────────────────────────────────────────────────────────────
 
 export interface Lesson {
   id: number
   title: string
   classRoomId: number
-  contentJson: CanvasData | null
+  contentJson: LessonContent | null
   createdAt: string
   updatedAt: string
 }
@@ -137,13 +193,18 @@ export interface LessonSummary {
   id: number
   title: string
   classRoomId: number
-  contentJson: CanvasData | null
+  contentJson: LessonContent | null
   createdAt: string
   updatedAt: string
 }
 
 // ── Template ───────────────────────────────────────────────────────────────
 
+/**
+ * Templates still use raw CanvasData — they are single canvas layouts,
+ * not full lesson node graphs. A template can be used as the contentJson
+ * of a single node inside a lesson.
+ */
 export interface Template {
   id: number
   title: string

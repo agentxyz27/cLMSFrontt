@@ -1,15 +1,15 @@
 /**
  * teacherLessonEdit.tsx
  *
- * Loads an existing lesson by ID, then opens the canvas editor
- * pre-populated with the lesson's contentJson.
+ * Loads an existing lesson by ID, then opens the node-based canvas editor
+ * pre-populated with the lesson's contentJson (LessonContent).
  *
  * If contentJson is null (lesson was created but never saved),
- * the editor opens with a blank canvas.
+ * the editor opens with a blank lesson (one explanation node).
  *
  * Endpoints:
  *   GET /api/lessons/lesson/:id  → load full lesson with contentJson
- *   PUT /api/lessons/:id         → save canvas JSON (handled inside CanvasEditor)
+ *   PUT /api/lessons/:id         → save LessonContent (handled inside CanvasEditor)
  */
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
@@ -17,10 +17,12 @@ import { useAuth } from '../../context/authContext'
 import { api } from '../../api/api'
 import CanvasEditor from '../../components/editor/canvasEditor'
 import type { Lesson } from '../../types'
+import { extractIdFromSlug } from '../../utils/slugify'
 
 export default function TeacherLessonEdit() {
   const { token } = useAuth()
-  const { id, lessonId } = useParams()  // id = classRoomId, lessonId = lesson id
+  const { id: rawId, lessonId } = useParams()
+  const id = String(extractIdFromSlug(rawId ?? ''))
   const navigate = useNavigate()
 
   const [lesson, setLesson] = useState<Lesson | null>(null)
