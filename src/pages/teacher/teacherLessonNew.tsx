@@ -6,37 +6,23 @@
  *   Step 2 — Teacher chooses: blank lesson or use a template
  *   Step 3 — Node-based canvas editor opens
  *
- * When using a template:
- *   The template's CanvasData becomes the contentJson of the first
- *   explanation node in a new LessonContent. Templates are single
- *   canvas layouts — they get wrapped into a lesson node graph.
- *
- * Endpoints:
- *   POST /api/lessons           → create lesson (title + classRoomId)
- *   GET  /api/templates         → fetch public templates for selection
- *   POST /api/templates/:id/use → create lesson from template
- *   PUT  /api/lessons/:id       → save LessonContent (handled inside CanvasEditor)
+ * Templates are now full LessonGraphs — no wrapping needed.
+ * They plug directly into the editor as initial content.
  */
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
+import { useTemplates } from '../../hooks/useTemplates'
+import { lessonApi } from '../../api/lessonApi'
+import { templateApi } from '../../api/templateApi'
 import CanvasEditor from '../../components/editor/canvasEditor'
 import CanvasPreview from '../../components/editor/canvasPreview'
-import type { CanvasData, LessonContent } from '../../types'
+import type { LessonGraph } from '../../types'
 import { extractIdFromSlug } from '../../utils/slugify'
 
 interface CreatedLesson {
   id: number
   title: string
-}
-
-interface Template {
-  id: number
-  title: string
-  usageCount: number
-  teacher: { id: number; name: string } | null
-  contentJson?: CanvasData
 }
 
 type Step = 'title' | 'choose' | 'editor'
@@ -50,14 +36,17 @@ export default function TeacherLessonNew() {
   const [step, setStep] = useState<Step>('title')
   const [title, setTitle] = useState('')
   const [lesson, setLesson] = useState<CreatedLesson | null>(null)
-  const [initialContent, setInitialContent] = useState<LessonContent | null>(null)
+  const [initialContent, setInitialContent] = useState<LessonGraph | null>(null)
   const [creating, setCreating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const [templates, setTemplates] = useState<Template[]>([])
-  const [templatesLoading, setTemplatesLoading] = useState(false)
-  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null)
   const [using, setUsing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null)
+
+  const { data: templates, loading: templatesLoading } = useTemplates(
+    step === 'choose' ? token : null
+  )
+
+  const selectedTemplate = templates.find(t => t.id === selectedTemplateId) ?? null
 
   const handleTitleNext = () => {
     if (!title.trim()) {
@@ -65,33 +54,17 @@ export default function TeacherLessonNew() {
       return
     }
     setError(null)
-    fetchTemplates()
     setStep('choose')
   }
 
-  const fetchTemplates = async () => {
-    setTemplatesLoading(true)
-    try {
-      const res = await api.get<Template[]>('/templates', token)
-      setTemplates(res)
-    } catch {
-      // silently fail — blank lesson still available
-    } finally {
-      setTemplatesLoading(false)
-    }
-  }
-
   const handleBlankLesson = async () => {
+    if (!token) return
     setCreating(true)
     setError(null)
     try {
-      const res = await api.post<{ lesson: CreatedLesson }>(
-        '/lessons',
-        { title, classRoomId: Number(id) },
-        token
-      )
+      const res = await lessonApi.create({ title, classRoomId: Number(id) }, token)
       setLesson(res.lesson)
-      setInitialContent(null) // editor will use BLANK_LESSON default
+      setInitialContent(null)
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson')
@@ -101,40 +74,18 @@ export default function TeacherLessonNew() {
   }
 
   const handleUseTemplate = async () => {
-    if (!selectedTemplate) return
+    if (!selectedTemplate || !token) return
     setUsing(true)
     setError(null)
     try {
-      const res = await api.post<{ lesson: CreatedLesson }>(
-        `/templates/${selectedTemplate.id}/use`,
+      const res = await templateApi.use(
+        selectedTemplate.id,
         { classRoomId: Number(id), title },
         token
       )
       setLesson(res.lesson)
-
-      // Wrap template CanvasData into a LessonContent with one explanation node
-      if (selectedTemplate.contentJson) {
-        const wrappedContent: LessonContent = {
-          nodes: [
-            {
-              id: 'node_1',
-              type: 'explanation',
-              contentJson: selectedTemplate.contentJson,
-              nextNodeId: null,
-              hintNodeId: null
-            }
-          ],
-          settings: {
-            passingScore: 70,
-            retryLimit: null,
-            badgeId: null
-          }
-        }
-        setInitialContent(wrappedContent)
-      } else {
-        setInitialContent(null)
-      }
-
+      // Template is already a LessonGraph — plug directly into editor
+      setInitialContent(selectedTemplate.contentJson ?? null)
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson from template')
@@ -186,44 +137,47 @@ export default function TeacherLessonNew() {
           <p>No public templates available yet.</p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-            {templates.map(template => (
-              <div
-                key={template.id}
-                onClick={() => setSelectedTemplate(
-                  selectedTemplate?.id === template.id ? null : template
-                )}
-                style={{
-                  cursor: 'pointer',
-                  border: selectedTemplate?.id === template.id
-                    ? '2px solid #3b82f6'
-                    : '1px solid #eee',
-                  borderRadius: 8,
-                  overflow: 'hidden',
-                  width: 260,
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
-                }}
-              >
-                <div style={{ pointerEvents: 'none' }}>
-                  {template.contentJson ? (
-                    <CanvasPreview contentJson={template.contentJson} previewWidth={260} />
-                  ) : (
-                    <div style={{
-                      width: 260, height: 146,
-                      background: '#f5f5f5',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <p style={{ color: '#999' }}>No preview</p>
-                    </div>
+            {templates.map(template => {
+              const firstCanvas = template.contentJson?.nodes?.[0]?.contentJson
+              return (
+                <div
+                  key={template.id}
+                  onClick={() => setSelectedTemplateId(
+                    selectedTemplateId === template.id ? null : template.id
                   )}
+                  style={{
+                    cursor: 'pointer',
+                    border: selectedTemplateId === template.id
+                      ? '2px solid #3b82f6'
+                      : '1px solid #eee',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    width: 260,
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
+                  }}
+                >
+                  <div style={{ pointerEvents: 'none' }}>
+                    {firstCanvas ? (
+                      <CanvasPreview contentJson={firstCanvas} previewWidth={260} />
+                    ) : (
+                      <div style={{
+                        width: 260, height: 146,
+                        background: '#f5f5f5',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}>
+                        <p style={{ color: '#999' }}>No preview</p>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: '8px 12px' }}>
+                    <h3 style={{ margin: 0, fontSize: 14 }}>{template.title}</h3>
+                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>
+                      By {template.teacher?.name ?? 'Unknown'} · Used {template.usageCount} times
+                    </p>
+                  </div>
                 </div>
-                <div style={{ padding: '8px 12px' }}>
-                  <h3 style={{ margin: 0, fontSize: 14 }}>{template.title}</h3>
-                  <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>
-                    By {template.teacher?.name ?? 'Unknown'} · Used {template.usageCount} times
-                  </p>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
 

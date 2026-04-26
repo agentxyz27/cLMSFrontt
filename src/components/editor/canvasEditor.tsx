@@ -25,7 +25,7 @@ import CanvasPreview from './canvasPreview'
 import type {
   CanvasData,
   CanvasElement,
-  LessonContent,
+  LessonGraph,
   LessonNode,
   LessonNodeType,
   QuizData
@@ -38,7 +38,7 @@ const BLANK_CANVAS: CanvasData = {
   elements: []
 }
 
-const BLANK_LESSON: LessonContent = {
+const BLANK_LESSON: LessonGraph = {
   nodes: [
     {
       id: 'node_1',
@@ -114,7 +114,7 @@ const NODE_TYPE_LABEL: Record<LessonNodeType, string> = {
 
 interface CanvasEditorProps {
   lessonId: number
-  initial: LessonContent | null
+  initial: LessonGraph | null
   token: string | null
   onDone: () => void
 }
@@ -122,7 +122,7 @@ interface CanvasEditorProps {
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function CanvasEditor({ lessonId, initial, token, onDone }: CanvasEditorProps) {
-  const [lessonContent, setLessonContent] = useState<LessonContent>(initial ?? BLANK_LESSON)
+  const [lessonContent, setLessonContent] = useState<LessonGraph>(initial ?? BLANK_LESSON)
   const [activeNodeId, setActiveNodeId] = useState<string>(
     (initial ?? BLANK_LESSON).nodes[0].id
   )

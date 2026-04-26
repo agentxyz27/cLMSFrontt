@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
+import { studentClassroomApi } from '../../api/studentClassroomApi'
+import { progressApi } from '../../api/progressApi'
 import type { ClassRoom, Progress } from '../../types'
 
 export default function StudentDashboard() {
@@ -14,23 +15,28 @@ export default function StudentDashboard() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (authLoading || !token) return
-    async function fetchData() {
-      try {
-        const [classRoomsRes, progressRes] = await Promise.all([
-          api.get<ClassRoom[]>('/classrooms/my-section', token),
-          api.get<Progress[]>('/progress', token)
-        ])
-        setClassRooms(classRoomsRes)
-        setProgress(progressRes)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load dashboard')
-      } finally {
-        setLoading(false)
-      }
+  if (authLoading || !token) return
+
+  const safeToken = token
+
+  async function fetchData() {
+    try {
+      const [classRoomsRes, progressRes] = await Promise.all([
+        studentClassroomApi.getAll(safeToken),
+        progressApi.getMyProgress(safeToken)
+      ])
+
+      setClassRooms(classRoomsRes)
+      setProgress(progressRes)
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load dashboard')
+    } finally {
+      setLoading(false)
     }
-    fetchData()
-  }, [token, authLoading])
+  }
+
+  fetchData()
+}, [token, authLoading])
 
   if (authLoading || loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
@@ -48,6 +54,7 @@ export default function StudentDashboard() {
       </div>
 
       <h2>My Classrooms</h2>
+
       {classRooms.length === 0 ? (
         <p>No classrooms available for your section yet.</p>
       ) : (
@@ -57,7 +64,12 @@ export default function StudentDashboard() {
               <h3>{classRoom.subject.name}</h3>
               <p>Teacher: {classRoom.teacher?.name ?? 'Unknown'}</p>
               <p>Lessons: {classRoom._count?.lessons ?? 0}</p>
-              <button onClick={() => navigate(`/student/classrooms/${classRoom.id}`)}>
+
+              <button
+                onClick={() =>
+                  navigate(`/student/classrooms/${classRoom.id}`)
+                }
+              >
                 View Classroom
               </button>
             </div>

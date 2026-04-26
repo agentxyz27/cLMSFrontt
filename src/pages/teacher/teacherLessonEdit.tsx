@@ -11,12 +11,10 @@
  *   GET /api/lessons/lesson/:id  → load full lesson with contentJson
  *   PUT /api/lessons/:id         → save LessonContent (handled inside CanvasEditor)
  */
-import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
+import { useLesson } from '../../hooks/useLesson'
 import CanvasEditor from '../../components/editor/canvasEditor'
-import type { Lesson } from '../../types'
 import { extractIdFromSlug } from '../../utils/slugify'
 
 export default function TeacherLessonEdit() {
@@ -25,23 +23,7 @@ export default function TeacherLessonEdit() {
   const id = String(extractIdFromSlug(rawId ?? ''))
   const navigate = useNavigate()
 
-  const [lesson, setLesson] = useState<Lesson | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    async function fetchLesson() {
-      try {
-        const data = await api.get<Lesson>(`/lessons/lesson/${lessonId}`, token)
-        setLesson(data)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load lesson')
-      } finally {
-        setLoading(false)
-      }
-    }
-    fetchLesson()
-  }, [token, lessonId])
+  const { data: lesson, loading, error } = useLesson(lessonId, token)
 
   if (loading) return <div>Loading lesson...</div>
   if (error) return <div>Error: {error}</div>

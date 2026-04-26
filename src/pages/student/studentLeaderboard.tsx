@@ -1,39 +1,11 @@
-import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
-
-interface LeaderboardEntry {
-  id: number
-  name: string
-  xp: number
-  level: number
-}
+import { useLeaderboard } from '../../hooks/useLeaderboard'
 
 export default function StudentLeaderboard() {
-  const { token, user, loading: authLoading } = useAuth()
+  const { token, user } = useAuth()
+  const { data: leaderboard, loading, error } = useLeaderboard(token)
 
-  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (authLoading || !token) return
-
-    async function fetchData() {
-      try {
-        const res = await api.get<LeaderboardEntry[]>('/gamification/leaderboard', token)
-        setLeaderboard(res)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load leaderboard')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [token, authLoading])
-
-  if (authLoading || loading) return <div>Loading...</div>
+  if (loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
 
   return (

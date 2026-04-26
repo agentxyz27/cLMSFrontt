@@ -1,11 +1,3 @@
-/**
- * canvasPreview.tsx
- *
- * Read-only scaled canvas renderer for template previews.
- * No selection, drag, or interaction — display only.
- * Scales the canvas to fit a given width while maintaining aspect ratio.
- */
-
 import { useEffect, useState } from 'react'
 import { Stage, Layer, Rect, Text, Image as KonvaImage, Ellipse } from 'react-konva'
 import type {
@@ -17,27 +9,34 @@ import type {
 } from '../../types'
 
 interface CanvasPreviewProps {
-  contentJson: CanvasData
+  contentJson?: CanvasData | null
   previewWidth?: number
 }
 
 /**
- * Slightly more responsible image hook
- * Handles loading + updates when URL changes
+ * Image hook (safe version)
  */
 function useImage(url: string): HTMLImageElement | null {
   const [image, setImage] = useState<HTMLImageElement | null>(null)
 
   useEffect(() => {
+    if (!url) return
+
     const img = new window.Image()
     img.src = url
 
-    img.onload = () => setImage(img)
-    img.onerror = () => setImage(null)
+    let isMounted = true
+
+    img.onload = () => {
+      if (isMounted) setImage(img)
+    }
+
+    img.onerror = () => {
+      if (isMounted) setImage(null)
+    }
 
     return () => {
-      // cleanup just in case
-      setImage(null)
+      isMounted = false
     }
   }, [url])
 
@@ -45,7 +44,7 @@ function useImage(url: string): HTMLImageElement | null {
 }
 
 /**
- * Background Image Component (fixes hook rule issue)
+ * Background Image
  */
 function BgImage({
   url,
@@ -57,7 +56,6 @@ function BgImage({
   height: number
 }) {
   const image = useImage(url)
-
   if (!image) return null
 
   return (
@@ -97,7 +95,44 @@ export default function CanvasPreview({
   contentJson,
   previewWidth = 640
 }: CanvasPreviewProps) {
-  const { canvas, elements } = contentJson
+  // 🛑 Guard: no data
+  if (!contentJson || !contentJson.canvas) {
+    return (
+      <div
+        style={{
+          width: previewWidth,
+          height: previewWidth * 0.5625,
+          background: '#f5f5f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <p style={{ color: '#999' }}>No preview</p>
+      </div>
+    )
+  }
+
+  const canvas = contentJson.canvas
+  const elements = contentJson.elements ?? []
+
+  // 🛑 Guard: invalid dimensions
+  if (!canvas.width || !canvas.height) {
+    return (
+      <div
+        style={{
+          width: previewWidth,
+          height: previewWidth * 0.5625,
+          background: '#f5f5f5',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
+        <p style={{ color: '#999' }}>Invalid canvas</p>
+      </div>
+    )
+  }
 
   const scale = previewWidth / canvas.width
   const previewHeight = canvas.height * scale
@@ -112,17 +147,17 @@ export default function CanvasPreview({
         listening={false}
       >
         <Layer>
-          {/* Background Color */}
+          {/* Background */}
           <Rect
             x={0}
             y={0}
             width={canvas.width}
             height={canvas.height}
-            fill={canvas.background}
+            fill={canvas.background || '#ffffff'}
             listening={false}
           />
 
-          {/* Background Image (NEW) */}
+          {/* Background Image */}
           {canvas.backgroundImage && (
             <BgImage
               url={canvas.backgroundImage}
@@ -133,6 +168,8 @@ export default function CanvasPreview({
 
           {/* Elements */}
           {elements.map(el => {
+            if (!el) return null
+
             if (el.type === 'text') {
               const props = el.props as TextElementProps
               return (
@@ -142,9 +179,9 @@ export default function CanvasPreview({
                   y={el.y}
                   width={el.width}
                   height={el.height}
-                  text={props.text}
-                  fontSize={props.fontSize}
-                  fill={props.color}
+                  text={props.text || ''}
+                  fontSize={props.fontSize || 16}
+                  fill={props.color || '#000'}
                   fontStyle={props.fontStyle || 'normal'}
                   align={props.align || 'left'}
                   listening={false}
@@ -167,9 +204,9 @@ export default function CanvasPreview({
                     y={el.y + el.height / 2}
                     radiusX={el.width / 2}
                     radiusY={el.height / 2}
-                    fill={props.fill}
-                    stroke={props.stroke}
-                    strokeWidth={props.strokeWidth}
+                    fill={props.fill || '#ccc'}
+                    stroke={props.stroke || '#000'}
+                    strokeWidth={props.strokeWidth || 1}
                     listening={false}
                   />
                 )
@@ -182,9 +219,9 @@ export default function CanvasPreview({
                   y={el.y}
                   width={el.width}
                   height={el.height}
-                  fill={props.fill}
-                  stroke={props.stroke}
-                  strokeWidth={props.strokeWidth}
+                  fill={props.fill || '#ccc'}
+                  stroke={props.stroke || '#000'}
+                  strokeWidth={props.strokeWidth || 1}
                   listening={false}
                 />
               )

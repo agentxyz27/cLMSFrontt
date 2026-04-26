@@ -1,33 +1,11 @@
-import { useEffect, useState } from 'react'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
-import type { StudentBadge } from '../../types'
+import { useBadges } from '../../hooks/useBadges'
 
 export default function StudentBadges() {
-  const { token, loading: authLoading } = useAuth()
+  const { token } = useAuth()
+  const { data: badges, loading, error } = useBadges(token)
 
-  const [badges, setBadges] = useState<StudentBadge[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (authLoading || !token) return
-
-    async function fetchData() {
-      try {
-        const res = await api.get<StudentBadge[]>('/gamification/badges', token)
-        setBadges(res)
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'Failed to load badges')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [token, authLoading])
-
-  if (authLoading || loading) return <div>Loading...</div>
+  if (loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
 
   return (

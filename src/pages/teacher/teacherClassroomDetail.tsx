@@ -1,65 +1,38 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
-import { api } from '../../api/api'
+import { useClassRoom } from '../../hooks/useClassRoom'
+import { lessonApi } from '../../api/lessonApi'
+import { templateApi } from '../../api/templateApi'
 import CanvasPreview from '../../components/editor/canvasPreview'
-import type { Section, LessonSummary, Subject } from '../../types'
+import type { LessonSummary } from '../../types'
 import { extractIdFromSlug, classRoomSlug } from '../../utils/slugify'
 
-interface ClassRoom {
-  id: number
-  teacherId: number
-  subjectId: number
-  sectionId: number
-  createdAt: string
-  subject: Subject
-  section: Section
-  lessons: LessonSummary[]
-}
-
 export default function TeacherClassroomDetail() {
-  const { token, loading: authLoading } = useAuth()
+  const { token } = useAuth()
   const { id: rawId } = useParams()
   const id = String(extractIdFromSlug(rawId ?? ''))
   const navigate = useNavigate()
 
-  const [classRoom, setClassRoom] = useState<ClassRoom | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: classRoom, loading, error, refetch } = useClassRoom(id, token)
 
   const [renamingId, setRenamingId] = useState<number | null>(null)
   const [renameValue, setRenameValue] = useState('')
   const [publishingId, setPublishingId] = useState<number | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (authLoading || !token) return
-    fetchClassRoom()
-  }, [token, authLoading, id])
-
-  const fetchClassRoom = async () => {
-    try {
-      const res = await api.get<ClassRoom>(`/classrooms/${id}`, token)
-      setClassRoom(res)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load classroom')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const slug = classRoom 
-  ? classRoomSlug(classRoom.id, classRoom.subject.name, classRoom.section.name)
-  : id
+  const slug = classRoom
+    ? classRoomSlug(classRoom.id, classRoom.subject.name, classRoom.section.name)
+    : id
 
   const handleDeleteLesson = async (lessonId: number) => {
     if (!confirm('Delete this lesson? This cannot be undone.')) return
+    if (!token) return
     try {
-      await api.delete(`/lessons/${lessonId}`, token)
-      setClassRoom(prev =>
-        prev ? { ...prev, lessons: prev.lessons.filter(l => l.id !== lessonId) } : prev
-      )
+      await lessonApi.delete(lessonId, token)
+      await refetch()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to delete lesson')
+      setActionError(err instanceof Error ? err.message : 'Failed to delete lesson')
     }
   }
 
@@ -69,51 +42,53 @@ export default function TeacherClassroomDetail() {
   }
 
   const handleRename = async (lessonId: number) => {
-    if (!renameValue.trim()) return
+    if (!renameValue.trim() || !token) return
     try {
-      await api.put(`/lessons/${lessonId}`, { title: renameValue }, token)
-      setClassRoom(prev =>
-        prev
-          ? {
-              ...prev,
-              lessons: prev.lessons.map(l =>
-                l.id === lessonId ? { ...l, title: renameValue } : l
-              )
-            }
-          : prev
-      )
+      await lessonApi.update(lessonId, { title: renameValue }, token)
+      await refetch()
       setRenamingId(null)
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to rename lesson')
+      setActionError(err instanceof Error ? err.message : 'Failed to rename lesson')
     }
   }
 
   const handlePublish = async (lesson: LessonSummary) => {
-    // Use first node's canvas as the template contentJson
-    const firstNodeCanvas = lesson.contentJson?.nodes?.[0]?.contentJson
-    if (!firstNodeCanvas) {
-      alert('This lesson has no content to publish.')
-      return
-    }
-    if (!confirm(`Publish "${lesson.title}" to the template library?`)) return
-    setPublishingId(lesson.id)
-    try {
-      await api.post('/templates', {
-        title: lesson.title,
-        contentJson: firstNodeCanvas,
-        isPublic: true
-      }, token)
-      alert(`"${lesson.title}" has been published to the template library.`)
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to publish lesson')
-    } finally {
-      setPublishingId(null)
-    }
+  if (!lesson.contentJson?.nodes?.length) {
+    alert('This lesson has no content to publish.')
+    return
   }
 
-  if (authLoading || loading) return <div>Loading...</div>
+  if (!confirm(`Publish "${lesson.title}" to the template library?`)) return
+  if (!token) return
+
+  setPublishingId(lesson.id)
+
+  try {
+    // 🔥 IMPORTANT FIX: publish FULL lesson graph, not first node
+    await templateApi.create(
+      {
+        title: lesson.title,
+        contentJson: lesson.contentJson, // <-- FULL GRAPH
+        isPublic: true
+      },
+      token
+    )
+
+    alert(`"${lesson.title}" has been published to the template library.`)
+  } catch (err: unknown) {
+    setActionError(
+      err instanceof Error ? err.message : 'Failed to publish lesson'
+    )
+  } finally {
+    setPublishingId(null)
+  }
+}
+
+  if (loading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
   if (!classRoom) return <div>Classroom not found</div>
+
+  const lessons = classRoom.lessons ?? []
 
   return (
     <div>
@@ -122,19 +97,21 @@ export default function TeacherClassroomDetail() {
       <h1>{classRoom.subject.name}</h1>
       <p>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
 
+      {actionError && <p style={{ color: 'red' }}>{actionError}</p>}
+
       <div style={{ marginBottom: 24 }}>
         <button onClick={() => navigate(`/teacher/classrooms/${slug}/lessons/new`)}>
           + New Lesson
         </button>
       </div>
 
-      <h2>Lessons ({classRoom.lessons.length})</h2>
+      <h2>Lessons ({lessons.length})</h2>
 
-      {classRoom.lessons.length === 0 ? (
+      {lessons.length === 0 ? (
         <p>No lessons yet. Create your first lesson!</p>
       ) : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
-          {classRoom.lessons.map(lesson => {
+          {lessons.map(lesson => {
             const firstNodeCanvas = lesson.contentJson?.nodes?.[0]?.contentJson
             return (
               <div
@@ -147,7 +124,6 @@ export default function TeacherClassroomDetail() {
                   boxShadow: '0 1px 4px rgba(0,0,0,0.08)'
                 }}
               >
-                {/* Thumbnail — uses first node's canvas */}
                 <div style={{ pointerEvents: 'none' }}>
                   {firstNodeCanvas ? (
                     <CanvasPreview contentJson={firstNodeCanvas} previewWidth={300} />
@@ -161,7 +137,6 @@ export default function TeacherClassroomDetail() {
                   )}
                 </div>
 
-                {/* Card info */}
                 <div style={{ padding: '8px 12px' }}>
                   {renamingId === lesson.id ? (
                     <div style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
