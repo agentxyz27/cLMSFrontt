@@ -14,7 +14,7 @@ import { useTemplates } from '../../hooks/useTemplates'
 import { useClassRooms } from '../../hooks/useClassRooms'
 import { templateApi } from '../../api/templateApi'
 
-import CanvasPreview from '../../components/editor/canvasPreview'
+import CanvasPreview from '../../components/editor/main/canvasPreview'
 import GraphPreview from '../../components/graphPreview'
 
 import type { Template, ClassRoom } from '../../types'

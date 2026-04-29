@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import CanvasPreview from './editor/canvasPreview'
+import CanvasPreview from './editor/main/canvasPreview'
 import type { LessonGraph, LessonNode } from '../types'
 
 interface GraphPreviewProps {

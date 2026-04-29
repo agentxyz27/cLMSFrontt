@@ -6,7 +6,7 @@ import type {
   TextElementProps,
   ImageElementProps,
   ShapeElementProps
-} from '../../types'
+} from '../../../types'
 
 interface CanvasPreviewProps {
   contentJson?: CanvasData | null

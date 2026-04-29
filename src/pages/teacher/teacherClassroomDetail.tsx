@@ -4,7 +4,7 @@ import { useAuth } from '../../context/authContext'
 import { useClassRoom } from '../../hooks/useClassRoom'
 import { lessonApi } from '../../api/lessonApi'
 import { templateApi } from '../../api/templateApi'
-import CanvasPreview from '../../components/editor/canvasPreview'
+import CanvasPreview from '../../components/editor/main/canvasPreview'
 import type { LessonSummary } from '../../types'
 import { extractIdFromSlug, classRoomSlug } from '../../utils/slugify'
 

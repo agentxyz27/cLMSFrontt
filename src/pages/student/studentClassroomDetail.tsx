@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { studentClassroomApi } from '../../api/studentClassroomApi'
 import { api } from '../../api/api'
-import CanvasPreview from '../../components/editor/canvasPreview'
+import CanvasPreview from '../../components/editor/main/canvasPreview'
 import type { ClassRoom, Progress, LessonSummary } from '../../types'
 
 export default function StudentClassroomDetail() {

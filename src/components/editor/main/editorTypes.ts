@@ -5,7 +5,7 @@
  * These are not API response shapes — they describe editor UI state.
  */
 
-import type { CanvasData, CanvasElement } from '../../types'
+import type { CanvasData, CanvasElement } from '../../../types'
 
 /**
  * Full editor state held in CanvasEditor.tsx.

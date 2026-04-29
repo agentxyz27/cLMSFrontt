@@ -17,7 +17,7 @@
  * CanvasStage and PropertiesPanel are unchanged — they still work on CanvasData.
  */
 import { useState, useCallback, useEffect } from 'react'
-import { api } from '../../api/api'
+import { api } from '../../../api/api'
 import EditorToolbar from './editorToolbar'
 import CanvasStage from './canvasStage'
 import PropertiesPanel from './propertiesPanel'
@@ -29,7 +29,7 @@ import type {
   LessonNode,
   LessonNodeType,
   QuizData
-} from '../../types'
+} from '../../../types'
 
 // ── Defaults ───────────────────────────────────────────────────────────────
 

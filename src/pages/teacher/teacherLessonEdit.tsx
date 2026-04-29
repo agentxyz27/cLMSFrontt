@@ -14,7 +14,7 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 import { useLesson } from '../../hooks/useLesson'
-import CanvasEditor from '../../components/editor/canvasEditor'
+import CanvasEditor from '../../components/editor/main/canvasEditor'
 import { extractIdFromSlug } from '../../utils/slugify'
 
 export default function TeacherLessonEdit() {
