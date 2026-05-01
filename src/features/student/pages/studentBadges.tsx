@@ -1,5 +1,6 @@
 import { useAuth } from '../../../context/authContext'
 import { useBadges } from '../hooks/useBadges'
+import BadgeCard from '../components/badgeCard'
 
 export default function StudentBadges() {
   const { token } = useAuth()
@@ -15,14 +16,7 @@ export default function StudentBadges() {
         <p>No badges earned yet. Complete lessons to earn badges!</p>
       ) : (
         <div>
-          {badges.map(sb => (
-            <div key={sb.id}>
-              <h3>🏅 {sb.badge.name}</h3>
-              <p>{sb.badge.description}</p>
-              <p>Required XP: {sb.badge.xpRequired}</p>
-              <p>Earned: {new Date(sb.earnedAt).toLocaleDateString()}</p>
-            </div>
-          ))}
+          {badges.map(sb => <BadgeCard key={sb.id} studentBadge={sb} />)}
         </div>
       )}
     </div>

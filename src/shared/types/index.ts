@@ -113,7 +113,18 @@ export interface Grade {
 export interface Section {
   id: number
   name: string
+}
+
+export interface SectionWithGrade {
+  id: number
+  name: string
   grade: Grade
+}
+
+export interface GradeWithSections {
+  id: number
+  level: number
+  sections: Section[]
 }
 
 // ── Subject ────────────────────────────────────────────────────────────────
@@ -134,7 +145,7 @@ export interface ClassRoom {
   sectionId: number
   createdAt: string
   subject: Subject
-  section: Section
+  section: SectionWithGrade
   teacher?: Teacher
   lessons?: LessonSummary[]
   _count?: { lessons: number }

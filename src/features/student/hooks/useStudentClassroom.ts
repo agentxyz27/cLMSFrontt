@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react'
 import { studentClassroomApi } from '../../../shared/api/studentClassroomApi'
-import type { ClassRoom } from '../../../shared/types'
+import { api } from '../../../shared/api/api'
+import type { ClassRoom, LessonSummary, Progress } from '../../../shared/types'
 
 export function useStudentClassRoom(id: string | undefined, token: string | null) {
   const [data, setData] = useState<ClassRoom | null>(null)
+  const [lessons, setLessons] = useState<LessonSummary[]>([])
+  const [completedLessonIds, setCompletedLessonIds] = useState<Set<number>>(new Set())
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -11,8 +14,14 @@ export function useStudentClassRoom(id: string | undefined, token: string | null
     if (!token || !id) return
     setLoading(true)
     try {
-      const res = await studentClassroomApi.getById(id, token)
-      setData(res)
+      const [classRoomRes, lessonsRes, progressRes] = await Promise.all([
+        studentClassroomApi.getById(id, token),
+        studentClassroomApi.getLessons(id, token),
+        api.get<Progress[]>('/progress', token)
+      ])
+      setData(classRoomRes)
+      setLessons(lessonsRes)
+      setCompletedLessonIds(new Set(progressRes.filter(p => p.completed).map(p => p.lessonId)))
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load classroom')
     } finally {
@@ -21,6 +30,5 @@ export function useStudentClassRoom(id: string | undefined, token: string | null
   }
 
   useEffect(() => { fetch() }, [id, token])
-
-  return { data, loading, error, refetch: fetch }
+  return { data, lessons, completedLessonIds, loading, error, refetch: fetch }
 }

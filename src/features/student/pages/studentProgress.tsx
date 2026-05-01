@@ -1,5 +1,6 @@
 import { useAuth } from '../../../context/authContext'
 import { useProgress } from '../hooks/useProgress'
+import ProgressCard from '../components/progressCard'
 
 export default function StudentProgress() {
   const { token } = useAuth()
@@ -22,15 +23,7 @@ export default function StudentProgress() {
         <p>No progress yet. Start a lesson!</p>
       ) : (
         <div>
-          {progress.map(p => (
-            <div key={p.id}>
-              <h3>{p.lesson.title}</h3>
-              <p>Subject: {p.lesson.classRoom.subject.name}</p>
-              <p>Status: {p.completed ? '✅ Completed' : '☐ Not completed'}</p>
-              <p>XP Earned: {p.xpEarned}</p>
-              {p.score !== null && <p>Score: {p.score}%</p>}
-            </div>
-          ))}
+          {progress.map(p => <ProgressCard key={p.id} progress={p} />)}
         </div>
       )}
     </div>

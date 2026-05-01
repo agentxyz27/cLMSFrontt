@@ -1,5 +1,6 @@
 import { useAuth } from '../../../context/authContext'
 import { useLeaderboard } from '../hooks/useLeaderboard'
+import LeaderboardRow from '../components/leaderboardRow'
 
 export default function StudentLeaderboard() {
   const { token, user } = useAuth()
@@ -17,13 +18,12 @@ export default function StudentLeaderboard() {
       ) : (
         <div>
           {leaderboard.map((entry, index) => (
-            <div key={entry.id} style={{ fontWeight: String(entry.id) === user?.id ? 'bold' : 'normal' }}>
-              <span>#{index + 1}</span>
-              <span>{entry.name}</span>
-              <span>Level {entry.level}</span>
-              <span>{entry.xp} XP</span>
-              {String(entry.id) === user?.id && <span>← You</span>}
-            </div>
+            <LeaderboardRow
+              key={entry.id}
+              entry={entry}
+              rank={index + 1}
+              isCurrentUser={String(entry.id) === user?.id}
+            />
           ))}
         </div>
       )}

@@ -1,11 +1,7 @@
 import { useEffect, useState } from 'react'
 import { sectionApi } from '../../../shared/api/sectionApi'
+import type { GradeWithSections } from '../../../shared/types'
 
-interface GradeWithSections {
-  id: number
-  level: number
-  sections: { id: number; name: string }[]
-}
 
 export function useSections(token?: string | null) {
   const [data, setData] = useState<GradeWithSections[]>([])
