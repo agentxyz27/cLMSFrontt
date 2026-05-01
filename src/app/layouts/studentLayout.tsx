@@ -16,6 +16,8 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 
+import { Card, Button } from 'pixel-retroui'
+
 export default function StudentLayout() {
   const { logout, user } = useAuth()
   const navigate = useNavigate()
@@ -26,19 +28,19 @@ export default function StudentLayout() {
   }
 
   return (
-    <div>
-      <aside>
+    <div className="flex min-h-screen">
+      <Card className="p-4">
         <p>{user?.name}</p>
 
-        <nav>
-          <button onClick={() => navigate('/student/dashboard')}>Dashboard</button>
-          <button onClick={() => navigate('/student/progress')}>Progress</button>
-          <button onClick={() => navigate('/student/badges')}>Badges</button>
-          <button onClick={() => navigate('/student/leaderboard')}>Leaderboard</button>
+        <nav className="flex flex-col gap-2 mt-4">
+          <Button onClick={() => navigate('/student/dashboard')}>Dashboard</Button>
+          <Button onClick={() => navigate('/student/progress')}>Progress</Button>
+          <Button onClick={() => navigate('/student/badges')}>Badges</Button>
+          <Button onClick={() => navigate('/student/leaderboard')}>Leaderboard</Button>
         </nav>
 
-        <button onClick={handleLogout}>Logout</button>
-      </aside>
+        <Button onClick={handleLogout}>Logout</Button>
+      </Card>
 
       <main>
         <Outlet />

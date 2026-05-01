@@ -10,13 +10,26 @@
  *   /register → for new users
  */
 
-import { useNavigate } from 'react-router-dom'
+import { useState } from "react"
+import { Popup, Button } from "pixel-retroui"
+import Login from "./login"
+
 
 export default function Landing() {
-  const navigate = useNavigate()
+
+  const [ isPopupOpen, setIsPopupOpen ] = useState(false)
+
+  const openPopup = () => setIsPopupOpen(true)
+  const closePopup = () => setIsPopupOpen(false)
 
   return (
-    <div>
+    <div className="flex flex-col items-center justify-center min-h-screen p-8 text-center">
+      <Button onClick={openPopup}>Open Popup</Button>
+
+      <Popup isOpen={isPopupOpen} onClose={closePopup}>
+        <Login />
+      </Popup>
+      
       <h1>cLMS</h1>
       <h2>Central Learning Management System</h2>
       <p>
@@ -27,11 +40,6 @@ export default function Landing() {
         Designed to help teachers manage lessons and track student
         progress, and help students learn at their own pace.
       </p>
-
-      <div>
-        <button onClick={() => navigate('/login')}>Login</button>
-        <button onClick={() => navigate('/register')}>Register</button>
-      </div>
     </div>
   )
 }

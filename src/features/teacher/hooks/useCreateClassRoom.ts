@@ -2,20 +2,20 @@ import { useState } from 'react'
 import { teacherClassroomApi } from '../../../shared/api/teacherClassroomApi'
 
 export function useCreateClassRoom(token: string | null, onSuccess: () => void) {
-  const [showModal, setShowModal] = useState(false)
+  const [isOpen, setIsOpen] = useState(false)
   const [selectedSubjectId, setSelectedSubjectId] = useState('')
   const [selectedSectionId, setSelectedSectionId] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
 
   const openModal = () => {
-    setShowModal(true)
+    setIsOpen(true)
     setCreateError(null)
     setSelectedSubjectId('')
     setSelectedSectionId('')
   }
 
-  const closeModal = () => setShowModal(false)
+  const closeModal = () => setIsOpen(false)
 
   const handleCreate = async () => {
     if (!selectedSubjectId || !selectedSectionId) {
@@ -27,7 +27,7 @@ export function useCreateClassRoom(token: string | null, onSuccess: () => void) 
     setCreateError(null)
     try {
       await teacherClassroomApi.create({ subjectId: selectedSubjectId, sectionId: selectedSectionId }, token)
-      setShowModal(false)
+      setIsOpen(false)
       onSuccess()
     } catch (err: unknown) {
       setCreateError(err instanceof Error ? err.message : 'Failed to create classroom')
@@ -37,7 +37,7 @@ export function useCreateClassRoom(token: string | null, onSuccess: () => void) 
   }
 
   return {
-    showModal, openModal, closeModal,
+    isOpen, openModal, closeModal,
     selectedSubjectId, setSelectedSubjectId,
     selectedSectionId, setSelectedSectionId,
     creating, createError, handleCreate

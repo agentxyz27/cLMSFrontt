@@ -1,6 +1,9 @@
 import CanvasPreview from '../../../shared/components/editor/main/canvasPreview'
 import type { Template } from '../../../shared/types'
 
+import { MainCard } from '../../../shared/components/ui/card'
+import { Card } from 'pixel-retroui'
+
 interface Props {
   template: Template
   onClick: (template: Template) => void
@@ -13,7 +16,7 @@ export default function TemplateCard({ template, onClick, isSelected = false, pr
   const height = Math.round(previewWidth * (9 / 16))
 
   return (
-    <div
+    <MainCard
       onClick={() => onClick(template)}
       style={{
         cursor: 'pointer',
@@ -33,12 +36,12 @@ export default function TemplateCard({ template, onClick, isSelected = false, pr
           </div>
         )}
       </div>
-      <div style={{ padding: '8px 12px' }}>
+      <Card style={{ padding: '8px 12px' }}>
         <h3 style={{ margin: 0, fontSize: 14 }}>{template.title}</h3>
         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#999' }}>
           By {template.teacher?.name ?? 'Unknown'} · Used {template.usageCount} times
         </p>
-      </div>
-    </div>
+      </Card>
+    </MainCard>
   )
 }

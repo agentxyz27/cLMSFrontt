@@ -6,6 +6,12 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../context/authContext'
 import { authApi } from '../../../shared/api/authApi'
 
+import { MainCard } from '../../../shared/components/ui/card'
+import { RoleButton } from '../../../shared/components/ui/roleButton'
+
+import { Input, Button } from 'pixel-retroui'
+
+
 export default function Login() {
   const { login } = useAuth()
   const navigate = useNavigate()
@@ -41,36 +47,60 @@ export default function Login() {
     }
   }
 
+
+
   return (
-    <div>
-      <h1>Login</h1>
-      {sessionExpired && <p>Your session has expired. Please log in again.</p>}
+    <div className="min-h-screen flex items-center justify-center bg-red-500">
+      <MainCard
+        className="max-w-md mx-auto mt-10 p-4">
 
-      <div>
-        <button onClick={() => setRole('student')} disabled={role === 'student'}>Student</button>
-        <button onClick={() => setRole('teacher')} disabled={role === 'teacher'}>Teacher</button>
-      </div>
+          <div className='mb-4 text-center text-4xl font-bold'>Login</div>
 
-      <div>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </div>
+          {sessionExpired && <p>Your session has expired. Please log in again.</p>}
 
-      {error && <p>{error}</p>}
-      <p>No account? <a href="/register">Register</a></p>
+            {/* Role selector */}
+          <div className="flex gap-4 align-center justify-center mb-4">
+            <RoleButton
+              active={role === 'student'}
+              onClick={() => setRole('student')}
+            >
+              Student
+            </RoleButton>
+
+            <RoleButton
+              active={role === 'teacher'}
+              onClick={() => setRole('teacher')}
+            >
+              Teacher
+            </RoleButton>
+          </div>
+
+          <div className="flex flex-col gap-4 mb-4">
+            <Input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-4 mb-4">
+            <Button
+              onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Logging in...' : 'Login'}
+            </Button>
+          </div>
+
+          {error && <p>{error}</p>}
+          <p>No account? <a style={{ color: 'blue' }} href="/register">Register</a></p>
+          
+      </MainCard>
     </div>
   )
 }

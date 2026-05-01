@@ -15,8 +15,8 @@ export default function TeacherTemplateBrowser() {
   if (error) return <div>Error: {error}</div>
 
   return (
-    <div>
-      <h1>Template Library</h1>
+    <div className='flex-1 bg-violet-500'>
+      <h1 className='text-center'>Template Library</h1>
       <p>Browse publicly available templates. Click any card to preview.</p>
 
       {templates.length === 0 ? (

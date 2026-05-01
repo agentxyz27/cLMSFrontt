@@ -7,6 +7,14 @@ import { useAuth } from '../../../context/authContext'
 import { authApi } from '../../../shared/api/authApi'
 import { useSections } from '../../../features/teacher/hooks/useSections'
 
+import { MainCard } from '../../../shared/components/ui/card'
+import { RoleButton } from '../../../shared/components/ui/roleButton'
+
+import { Input, Button, } from 'pixel-retroui'
+
+
+
+
 export default function Register() {
   const navigate = useNavigate()
   const { token } = useAuth()
@@ -48,69 +56,88 @@ export default function Register() {
   }
 
   return (
-    <div>
-      <h1>Register</h1>
+    <div className="min-h-screen flex items-center justify-center bg-green-500">
+      <MainCard
+        className="max-w-md mx-auto mt-10 p-4">
 
-      <div>
-        <button onClick={() => setRole('student')} disabled={role === 'student'}>Student</button>
-        <button onClick={() => setRole('teacher')} disabled={role === 'teacher'}>Teacher</button>
-      </div>
+        <div className='mb-4 text-center text-4xl font-bold'>Register</div>
 
-      <div>
-        <input
-          type="text"
-          placeholder="Full name"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
+        {/* Role selector */}
+        <div className="flex gap-4 align-center justify-center mb-4">
+          <RoleButton
+            active={role === 'student'}
+            onClick={() => setRole('student')}
+          >
+            Student
+          </RoleButton>
 
-        {role === 'student' && (
-          <>
-            <input
-              type="text"
-              placeholder="LRN (12-digit Learner Reference Number)"
-              value={lrn}
-              onChange={e => setLrn(e.target.value)}
-              maxLength={12}
-            />
-            {sectionsLoading ? (
-              <p>Loading sections...</p>
-            ) : (
-              <select value={sectionId} onChange={e => setSectionId(e.target.value)}>
-                <option value=''>Select your section</option>
-                {grades.map(grade => (
-                  <optgroup key={grade.id} label={`Grade ${grade.level}`}>
-                    {grade.sections.map(section => (
-                      <option key={section.id} value={section.id}>
-                        {section.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                ))}
-              </select>
-            )}
-          </>
-        )}
+          <RoleButton
+            active={role === 'teacher'}
+            onClick={() => setRole('teacher')}
+          >
+            Teacher
+          </RoleButton>
+        </div>
 
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? 'Registering...' : 'Register'}
-        </button>
-      </div>
+        <div className="flex flex-col gap-4 mb-4">
+          <Input
+            type="text"
+            placeholder="Full name"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
 
-      {error && <p>{error}</p>}
-      <p>Already have an account? <a href="/login">Login</a></p>
+          {role === 'student' && (
+            <>
+              <Input
+                type="text"
+                placeholder="LRN (12-digit Learner Reference Number)"
+                value={lrn}
+                onChange={e => setLrn(e.target.value)}
+                maxLength={12}
+              />
+              {sectionsLoading ? (
+                <p>Loading sections...</p>
+              ) : (
+                <select value={sectionId} onChange={e => setSectionId(e.target.value)}>
+                  <option value=''>Select your section</option>
+                  {grades.map(grade => (
+                    <optgroup key={grade.id} label={`Grade ${grade.level}`}>
+                      {grade.sections.map(section => (
+                        <option key={section.id} value={section.id}>
+                          {section.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              )}
+            </>
+          )}
+          
+          <div className="flex flex-col gap-4 mb-4">
+            <Button onClick={handleSubmit} disabled={loading}>
+              {loading ? 'Registering...' : 'Register'}
+            </Button>
+          </div>
+
+        </div>
+
+        {error && <p>{error}</p>}
+        <p>Already have an account? <a style={{ color: 'blue' }} href="/login">Login</a></p>
+      </MainCard>
     </div>
   )
 }
