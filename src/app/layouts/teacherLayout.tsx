@@ -13,7 +13,6 @@
 import { Outlet, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/authContext'
 
-import { Card, Button } from 'pixel-retroui'
 
 export default function TeacherLayout() {
   const { logout, user } = useAuth()
@@ -28,22 +27,14 @@ export default function TeacherLayout() {
     <div className="flex min-h-screen">
 
       {/* SIDEBAR */}
-      <aside>
-        <Card className="p-4 w-64 h-full flex flex-col">
-          <img
-            src="/clmsFav.svg"
-            alt="CLMS Logo"
-            className="w-48 mb-4"
-          />
-
+      <aside className='bg-red-200'>
           <p>{user?.name}</p>
 
           <nav className="flex flex-col gap-2 mt-4">
-            <Button onClick={() => navigate('/teacher/dashboard')}>Dashboard</Button>
-            <Button onClick={() => navigate('/teacher/templates')}>Templates</Button>
-            <Button onClick={handleLogout}>Logout</Button>
+            <button onClick={() => navigate('/teacher/dashboard')}>Dashboard</button>
+            <button onClick={() => navigate('/teacher/templates')}>Templates</button>
+            <button onClick={handleLogout}>Logout</button>
           </nav>
-        </Card>
       </aside>
 
       {/* RIGHT SIDE (header + content stacked) */}

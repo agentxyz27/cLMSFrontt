@@ -1,4 +1,49 @@
+/* 1. BASE FRAMEWORK */
 @import "tailwindcss";
-
 @import "pixel-retroui/dist/index.css";
 @import "pixel-retroui/dist/fonts.css";
+
+/* 2. THEME SYSTEM */
+:root {
+  --bg-image: none;
+  --bg-size: auto;
+  --accent: #000;
+  --card: #ffffff;
+}
+
+/* PROFESSIONAL MODE */
+[data-theme="pro"] {
+  --bg-image:
+    linear-gradient(to right, rgba(0,0,0,0.1) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.1) 1px, transparent 1px);
+  --bg-size: 30px 30px;
+  --accent: #1f2937;
+  --card: #ffffff;
+}
+
+/* PIXEL MODE */
+[data-theme="pixel"] {
+  --bg-image: url('/bg0.png');
+  --bg-size: 25%;
+  --accent: #f9f06b;
+  --card: #fefcd0;
+}
+
+/* 3. CUSTOM UTILITIES */
+@layer utilities {
+  .pixel-shadow {
+    box-shadow:
+      0 -4px #000,
+      0 -8px #fff,
+      4px 0 #000,
+      4px -4px #fff,
+      8px 0 #fff,
+      0 4px #000,
+      0 8px #fff,
+      -4px 0 #000,
+      -4px 4px #fff,
+      -8px 0 #fff,
+      -4px -4px #fff,
+      4px 4px #fff;
+  }
+}

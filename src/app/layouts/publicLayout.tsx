@@ -1,28 +1,39 @@
-import { Outlet } from 'react-router-dom'
+import { Link, Outlet } from 'react-router-dom'
 
-import { useNavigate } from 'react-router-dom'
+import { PixelNavbar } from '../../shared/components/ui/pixelNavBar'
 import { Button } from 'pixel-retroui'
+import { useTheme } from '../../providers/themeProvider'
 
 export default function PublicLayout() {
-  const navigate = useNavigate()
+  const { toggleTheme, setThemeMode } = useTheme()
 
   return (
     <div>
-      <nav className="p-4 border-b bg-yellow-200 flex items-center justify-between">
-        <img
-          src="/clmsFav.svg"
-          alt="CLMS Logo"
-          className="w-24"
-        />
 
-        <div className="flex gap-2">
-          <Button onClick={() => navigate('/login')}>Login</Button>
-          <Button onClick={() => navigate('/register')}>Register</Button>
+      <PixelNavbar>
+
+        <div className="flex gap-4">
+          <Link className="nav-item" to="/">Home</Link>
+          <Link className="nav-item" to="/about">About</Link>
         </div>
-      </nav>
+
+        <div className="flex gap-4">
+          <Link className="nav-item" to="/login">Login</Link>
+          <Link className="nav-item" to="/register">Register</Link>
+        </div>
+
+        <div>
+          <Button onClick={() => setThemeMode("pro")}>Pro</Button>
+          <Button onClick={() => setThemeMode("pixel")}>Pixel</Button>
+          <Button onClick={toggleTheme}>Toggle</Button>
+        </div>
+
+      </PixelNavbar>
+
       <main>
         <Outlet />
       </main>
+
     </div>
   )
 }

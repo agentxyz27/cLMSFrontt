@@ -56,7 +56,7 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-green-500">
+    <div className="min-h-screen flex items-center justify-center">
       <MainCard
         className="max-w-md mx-auto mt-10 p-4">
 
