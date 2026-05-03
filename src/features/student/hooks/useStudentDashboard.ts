@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { studentClassroomApi } from '../../../shared/api/studentClassroomApi'
-import { progressApi } from '../../../shared/api/progressApi'
-import type { ClassRoom, Progress } from '../../../shared/types'
+import { studentClassroomApi } from '@/shared/api/studentClassroomApi'
+import { progressApi } from '@/shared/api/progressApi'
+import type { ClassRoom, Progress } from '@/shared/types'
 
 export function useStudentDashboard(token: string | null, authLoading: boolean) {
   const [classRooms, setClassRooms] = useState<ClassRoom[]>([])

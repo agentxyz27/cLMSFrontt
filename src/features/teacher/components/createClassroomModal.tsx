@@ -1,4 +1,4 @@
-import type { GradeWithSections } from '../../../shared/types'
+import type { GradeWithSections } from '@/shared/types'
 
 
 interface Props {

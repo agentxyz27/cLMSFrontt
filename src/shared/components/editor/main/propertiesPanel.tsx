@@ -21,7 +21,7 @@ import type {
   ShapeElementProps,
   CanvasElement,
   CanvasElementProps
-} from '../../../shared/types'
+} from '@/shared/types'
 
 export default function PropertiesPanel({
   element,

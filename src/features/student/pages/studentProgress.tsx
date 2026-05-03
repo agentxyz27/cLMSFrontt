@@ -1,4 +1,4 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useProgress } from '../hooks/useProgress'
 import ProgressCard from '../components/progressCard'
 

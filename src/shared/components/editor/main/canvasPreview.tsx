@@ -6,7 +6,7 @@ import type {
   TextElementProps,
   ImageElementProps,
   ShapeElementProps
-} from '../../../shared/types'
+} from '@/shared/types'
 
 interface CanvasPreviewProps {
   contentJson?: CanvasData | null

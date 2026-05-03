@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import type { ClassRoom } from '../../../shared/types'
+import type { ClassRoom } from '@/shared/types'
 
 interface Props {
   classRoom: ClassRoom

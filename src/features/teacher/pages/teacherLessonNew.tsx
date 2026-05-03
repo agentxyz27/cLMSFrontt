@@ -10,13 +10,13 @@
  * They plug directly into the editor as initial content.
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useTemplates } from '../hooks/useTemplates'
 import { useNewLessonFlow } from '../hooks/useNewLessonFlow'
 import LessonTitleStep from '../components/lessonTitleStep'
 import LessonChooseStep from '../components/lessonChooseStep'
-import CanvasEditor from '../../../shared/components/editor/main/canvasEditor'
-import { extractIdFromSlug } from '../../../shared/utils/slugify'
+import CanvasEditor from '@/shared/components/editor/main/canvasEditor'
+import { extractIdFromSlug } from '@/shared/utils/slugify'
 
 export default function TeacherLessonNew() {
   const { token } = useAuth()

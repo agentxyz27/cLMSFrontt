@@ -3,9 +3,9 @@
  */
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
-import { authApi } from '../../../shared/api/authApi'
-import { useSections } from '../../../features/teacher/hooks/useSections'
+import { useAuth } from '@/context/authContext'
+import { authApi } from '@/shared/api/authApi'
+import { useSections } from '@/features/teacher/hooks/useSections'
 
 export default function Register() {
   const navigate = useNavigate()

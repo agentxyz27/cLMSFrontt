@@ -1,5 +1,5 @@
 import TemplateCard from './templateCard'
-import type { Template } from '../../../shared/types'
+import type { Template } from '@/shared/types'
 
 interface Props {
   title: string

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { templateApi } from '../../../shared/api/templateApi'
-import type { Template } from '../../../shared/types'
+import { templateApi } from '@/shared/api/templateApi'
+import type { Template } from '@/shared/types'
 
 export function useTemplatePreview(token: string | null) {
   const [selected, setSelected] = useState<Template | null>(null)

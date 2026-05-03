@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { lessonApi } from '../../../shared/api/lessonApi'
-import type { Lesson } from '../../../shared/types'
+import { lessonApi } from '@/shared/api/lessonApi'
+import type { Lesson } from '@/shared/types'
 
 export function useLesson(id: string | undefined, token: string | null) {
   const [data, setData] = useState<Lesson | null>(null)

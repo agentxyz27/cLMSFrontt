@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { teacherClassroomApi } from '../../../shared/api/teacherClassroomApi'
+import { teacherClassroomApi } from '@/shared/api/teacherClassroomApi'
 
 export function useCreateClassRoom(token: string | null, onSuccess: () => void) {
   const [showModal, setShowModal] = useState(false)

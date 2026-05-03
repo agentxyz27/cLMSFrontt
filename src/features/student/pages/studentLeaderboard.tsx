@@ -1,4 +1,4 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useLeaderboard } from '../hooks/useLeaderboard'
 import LeaderboardRow from '../components/leaderboardRow'
 

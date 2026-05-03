@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { progressApi } from '../../../shared/api/progressApi'
-import type { Progress } from '../../../shared/types'
+import { progressApi } from '@/shared/api/progressApi'
+import type { Progress } from '@/shared/types'
 
 export function useProgress(token: string | null) {
   const [data, setData] = useState<Progress[]>([])

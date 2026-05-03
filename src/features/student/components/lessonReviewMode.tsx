@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CanvasRenderer, NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '../../../shared/components/editor/main/canvasRenderer'
-import type { LessonGraph } from '../../../shared/types'
+import { CanvasRenderer, NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/main/canvasRenderer'
+import type { LessonGraph } from '@/shared/types'
 
 interface Props {
   title: string

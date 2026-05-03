@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { templateApi } from '../../../shared/api/templateApi'
-import type { Template } from '../../../shared/types'
+import { templateApi } from '@/shared/api/templateApi'
+import type { Template } from '@/shared/types'
 
 export function useTemplates(token: string | null) {
   const [data, setData] = useState<Template[]>([])

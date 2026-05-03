@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { lessonApi } from '../../../shared/api/lessonApi'
-import { templateApi } from '../../../shared/api/templateApi'
-import type { LessonSummary } from '../../../shared/types'
+import { lessonApi } from '@/shared/api/lessonApi'
+import { templateApi } from '@/shared/api/templateApi'
+import type { LessonSummary } from '@/shared/types'
 
 export function useLessonActions(token: string | null, onSuccess: () => void) {
   const [publishingId, setPublishingId] = useState<number | null>(null)

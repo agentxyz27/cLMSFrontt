@@ -1,4 +1,4 @@
-import type { StudentBadge } from '../../../shared/types'
+import type { StudentBadge } from '@/shared/types'
 
 interface Props {
   studentBadge: StudentBadge

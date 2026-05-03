@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { lessonApi } from '../../../shared/api/lessonApi'
-import { templateApi } from '../../../shared/api/templateApi'
-import type { LessonGraph, Template } from '../../../shared/types'
+import { lessonApi } from '@/shared/api/lessonApi'
+import { templateApi } from '@/shared/api/templateApi'
+import type { LessonGraph, Template } from '@/shared/types'
 
 interface CreatedLesson { id: number; title: string }
 export type Step = 'title' | 'choose' | 'editor'

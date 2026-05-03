@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { sectionApi } from '../../../shared/api/sectionApi'
-import type { GradeWithSections } from '../../../shared/types'
+import { sectionApi } from '@/shared/api/sectionApi'
+import type { GradeWithSections } from '@/shared/types'
 
 
 export function useSections(token?: string | null) {

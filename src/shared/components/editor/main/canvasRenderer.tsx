@@ -1,4 +1,4 @@
-import type { CanvasData, CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps } from '../../../types'
+import type { CanvasData, CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps } from '@/shared/types'
 
 export const NODE_TYPE_COLOR: Record<string, string> = {
   explanation: '#3b82f6', example: '#8b5cf6',

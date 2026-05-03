@@ -12,7 +12,7 @@ import { useEffect, useRef } from 'react'
 import { Stage, Layer, Rect, Text, Image as KonvaImage, Ellipse, Transformer } from 'react-konva'
 import type Konva from 'konva'
 import type { CanvasStageProps } from './editorTypes'
-import type { CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps } from '../../../shared/types'
+import type { CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps } from '@/shared/types'
 
 function useImage(url: string): HTMLImageElement | null {
   const imgRef = useRef<HTMLImageElement | null>(null)

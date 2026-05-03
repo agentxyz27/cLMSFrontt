@@ -1,7 +1,7 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useStudentDashboard } from '../hooks/useStudentDashboard'
 import StudentClassRoomCard from '../components/studentClassroomCard'
-import type { ClassRoom } from '../../../shared/types'
+import type { ClassRoom } from '@/shared/types'
 
 export default function StudentDashboard() {
   const { token, user, loading: authLoading } = useAuth()

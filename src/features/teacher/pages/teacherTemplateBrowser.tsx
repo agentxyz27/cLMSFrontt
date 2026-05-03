@@ -1,4 +1,4 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useTemplates } from '../hooks/useTemplates'
 import { useClassRooms } from '../hooks/useClassRooms'
 import { useTemplatePreview } from '../hooks/useTemplatePreview'

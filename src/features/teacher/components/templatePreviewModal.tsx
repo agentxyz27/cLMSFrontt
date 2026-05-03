@@ -1,5 +1,5 @@
-import GraphPreview from '../../../shared/components/graphPreview'
-import type { Template, ClassRoom } from '../../../shared/types'
+import GraphPreview from '@/shared/components/graphPreview'
+import type { Template, ClassRoom } from '@/shared/types'
 
 interface Props {
   selected: Template | null

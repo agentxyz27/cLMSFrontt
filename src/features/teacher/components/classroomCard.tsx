@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
-import { classRoomSlug } from '../../../shared/utils/slugify'
-import type { ClassRoom } from '../../../shared/types'
+import { classRoomSlug } from '@/shared/utils/slugify'
+import type { ClassRoom } from '@/shared/types'
 
 interface Props {
   classRoom: ClassRoom

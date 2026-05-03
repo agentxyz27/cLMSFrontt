@@ -1,9 +1,9 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useClassRoom } from '../hooks/useClassRoom'
 import { useLessonActions } from '../hooks/useLessonActions'
 import LessonCard from '../components/lessonCard'
-import { extractIdFromSlug, classRoomSlug } from '../../../shared/utils/slugify'
+import { extractIdFromSlug, classRoomSlug } from '@/shared/utils/slugify'
 
 export default function TeacherClassroomDetail() {
   const { token } = useAuth()

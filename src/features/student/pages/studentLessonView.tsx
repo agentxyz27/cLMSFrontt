@@ -4,7 +4,7 @@
  * Node runner engine for student lesson viewing.
  */
 import { useParams } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useLesson } from '../../teacher/hooks/useLesson'
 import { useProgress } from '../hooks/useProgress'
 import { useLessonRunner } from '../hooks/useLessonRunner'

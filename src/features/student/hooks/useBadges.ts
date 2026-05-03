@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { progressApi } from '../../../shared/api/progressApi'
-import type { StudentBadge } from '../../../shared/types'
+import { progressApi } from '@/shared/api/progressApi'
+import type { StudentBadge } from '@/shared/types'
 
 export function useBadges(token: string | null) {
   const [data, setData] = useState<StudentBadge[]>([])

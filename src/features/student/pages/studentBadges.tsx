@@ -1,4 +1,4 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useBadges } from '../hooks/useBadges'
 import BadgeCard from '../components/badgeCard'
 

@@ -1,5 +1,5 @@
-import CanvasPreview from '../../../shared/components/editor/main/canvasPreview'
-import type { Template } from '../../../shared/types'
+import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
+import type { Template } from '@/shared/types'
 
 interface Props {
   template: Template

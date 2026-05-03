@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { progressApi } from '../../../shared/api/progressApi'
+import { progressApi } from '@/shared/api/progressApi'
 
 interface LeaderboardEntry {
   id: number

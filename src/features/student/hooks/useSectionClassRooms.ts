@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { classroomApi } from '../api/classroomApi'
-import type { ClassRoom } from '../../../shared/types'
+import type { ClassRoom } from '@/shared/types'
 
 export function useSectionClassRooms(token: string | null) {
   const [data, setData] = useState<ClassRoom[]>([])

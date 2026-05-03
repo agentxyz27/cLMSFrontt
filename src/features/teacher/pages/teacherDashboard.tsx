@@ -1,10 +1,10 @@
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useClassRooms } from '../hooks/useClassRooms'
 import { useSections } from '../hooks/useSections'
 import { useCreateClassRoom } from '../hooks/useCreateClassRoom'
 import ClassRoomCard from '../components/classroomCard'
 import CreateClassRoomModal from '../components/createClassroomModal'
-import type { ClassRoom } from '../../../shared/types'
+import type { ClassRoom } from '@/shared/types'
 
 export default function TeacherDashboard() {
   const { token, user } = useAuth()

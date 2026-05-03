@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import CanvasPreview from '../../../shared/components/editor/main/canvasPreview'
-import type { LessonSummary } from '../../../shared/types'
+import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
+import type { LessonSummary } from '@/shared/types'
 
 interface Props {
   lesson: LessonSummary

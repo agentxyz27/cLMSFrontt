@@ -1,4 +1,4 @@
-import type { Progress } from '../../../shared/types'
+import type { Progress } from '@/shared/types'
 
 interface Props {
   progress: Progress

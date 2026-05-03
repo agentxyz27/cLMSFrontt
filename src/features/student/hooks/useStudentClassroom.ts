@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
-import { studentClassroomApi } from '../../../shared/api/studentClassroomApi'
-import { api } from '../../../shared/api/api'
-import type { ClassRoom, LessonSummary, Progress } from '../../../shared/types'
+import { studentClassroomApi } from '@/shared/api/studentClassroomApi'
+import { api } from '@/shared/api/api'
+import type { ClassRoom, LessonSummary, Progress } from '@/shared/types'
 
 export function useStudentClassRoom(id: string | undefined, token: string | null) {
   const [data, setData] = useState<ClassRoom | null>(null)

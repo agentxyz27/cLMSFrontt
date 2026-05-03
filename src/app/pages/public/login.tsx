@@ -3,8 +3,8 @@
  */
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
-import { authApi } from '../../../shared/api/authApi'
+import { useAuth } from '@/context/authContext'
+import { authApi } from '@/shared/api/authApi'
 
 export default function Login() {
   const { login } = useAuth()

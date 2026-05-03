@@ -12,10 +12,10 @@
  *   PUT /api/lessons/:id         → save LessonContent (handled inside CanvasEditor)
  */
 import { useParams, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../../context/authContext'
+import { useAuth } from '@/context/authContext'
 import { useLesson } from '../hooks/useLesson'
-import CanvasEditor from '../../../shared/components/editor/main/canvasEditor'
-import { extractIdFromSlug } from '../../../shared/utils/slugify'
+import CanvasEditor from '@/shared/components/editor/main/canvasEditor'
+import { extractIdFromSlug } from '@/shared/utils/slugify'
 
 export default function TeacherLessonEdit() {
   const { token } = useAuth()

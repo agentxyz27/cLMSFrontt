@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { progressApi } from '../../../shared/api/progressApi'
-import type { LessonNode, LessonGraph } from '../../../shared/types'
+import { progressApi } from '@/shared/api/progressApi'
+import type { LessonNode, LessonGraph } from '@/shared/types'
 
 interface CompleteResponse {
   message: string
