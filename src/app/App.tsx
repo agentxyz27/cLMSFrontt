@@ -29,10 +29,10 @@ import TeacherLayout from './layouts/teacherLayout'
 import ProtectedRoute from './routes/protectedRoute'
 import RoleRoute from './routes/roleRoute'
 
-import Landing from './pages/public/landing'
-import NotFound from './pages/public/notFound'
-import Login from './pages/public/login'
-import Register from './pages/public/register'
+import Landing from './public/pages/landing'
+import NotFound from './public/pages/notFound'
+import Login from './public/pages/login'
+import Register from './public/pages/register'
 
 import StudentDashboard from '../features/student/pages/studentDashboard'
 import StudentClassroomDetail from '../features/student/pages/studentClassroomDetail'
@@ -46,6 +46,7 @@ import TeacherClassroomDetail from '../features/teacher/pages/teacherClassroomDe
 import TeacherLessonNew from '../features/teacher/pages/teacherLessonNew'
 import TeacherLessonEdit from '../features/teacher/pages/teacherLessonEdit'
 import TeacherTemplateBrowser from '../features/teacher/pages/teacherTemplateBrowser'
+import About from './public/pages/about'
 
 function App() {
   return (
@@ -57,6 +58,8 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
       </Route>
+
+      <Route path="/about" element={<About />} />
 
       {/* ── Student ── must be logged in AND role === student */}
       <Route element={<ProtectedRoute />}>

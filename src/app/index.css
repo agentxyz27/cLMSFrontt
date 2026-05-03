@@ -152,3 +152,33 @@
     @apply font-sans;
   }
 }
+
+@font-face {
+  font-family: 'Joystick';
+  src: url("../shared/fonts/joystix_monospace.otf") format('opentype');
+}
+
+@font-face {
+  font-family: 'Gumball';
+  src: url("../shared/fonts/title.TTF") format('truetype');
+}
+
+@font-face {
+  font-family: 'Fipps';
+  src: url("../shared/fonts/Fipps.otf") format('opentype');
+}
+
+@font-face {
+  font-family: 'mariofont';
+  src: url("../shared/fonts/Super Plumber Brothers.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: 'Proggy';
+  src: url("../shared/fonts/ProggyMonoRegular.ttf") format('truetype');
+}
+
+@font-face {
+  font-family: 'Rainy';
+  src: url("../shared/fonts/dogicapixel.ttf") format('truetype');
+}
