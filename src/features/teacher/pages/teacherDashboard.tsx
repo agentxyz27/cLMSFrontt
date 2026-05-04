@@ -24,13 +24,15 @@ export default function TeacherDashboard() {
 
   return (
     <div className='flex flex-col min-h-screen gap-4'>
+
       <h1>Welcome, {user?.name || 'Teacher'}</h1>
+      
         <div className='flex justify-center'>
-        <Card className='p-4 w-3/4 '>
-          <p>Total Classrooms: {classRooms.length}</p>
-          <p>Total Lessons: {totalLessons}</p>
-        <Button onClick={modal.openModal}>+ New Classroom</Button>
-        </Card>
+          <Card className='p-4 w-3/4 '>
+            <p>Total Classrooms: {classRooms.length}</p>
+            <p>Total Lessons: {totalLessons}</p>
+          <Button onClick={modal.openModal}>+ New Classroom</Button>
+          </Card>
         </div>
 
       <h2>My Classrooms</h2>
