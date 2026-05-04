@@ -5,6 +5,9 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/authContext'
 import { authApi } from '@/shared/api/authApi'
+import { Card } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 
 export default function Login() {
   const { login } = useAuth()
@@ -42,35 +45,40 @@ export default function Login() {
   }
 
   return (
-    <div>
-      <h1>Login</h1>
-      {sessionExpired && <p>Your session has expired. Please log in again.</p>}
+    <div className='flex  min-h-screen justify-center'>
 
-      <div>
-        <button onClick={() => setRole('student')} disabled={role === 'student'}>Student</button>
-        <button onClick={() => setRole('teacher')} disabled={role === 'teacher'}>Teacher</button>
-      </div>
+      <Card className='flex flex-wrap h-fit w-1/2 mt-24 p-8 gap-4'>
+        <h1 className='text-center text-4xl font-semibold text-blue-500'>Login</h1>
+        {sessionExpired && <p>Your session has expired. Please log in again.</p>}
 
-      <div>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={e => setPassword(e.target.value)}
-        />
-        <button onClick={handleSubmit} disabled={loading}>
-          {loading ? 'Logging in...' : 'Login'}
-        </button>
-      </div>
+        <div className='flex justify-center gap-8'>
+          <Button onClick={() => setRole('student')} disabled={role === 'student'}>Student</Button>
+          <Button onClick={() => setRole('teacher')} disabled={role === 'teacher'}>Teacher</Button>
+        </div>
 
-      {error && <p>{error}</p>}
-      <p>No account? <a href="/register">Register</a></p>
+        <div className='flex flex-col gap-4'>
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+          />
+          <Button className='bg-blue-500' onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </Button>
+        </div>
+
+        {error && <p>{error}</p>}
+        <p className='text-center '>No account? <a className='text-blue-500' href="/register">Register</a></p>
+
+      </Card>
+     
     </div>
   )
 }
