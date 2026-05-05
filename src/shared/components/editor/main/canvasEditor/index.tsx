@@ -1,17 +1,3 @@
-/**
- * canvasEditor/index.tsx
- *
- * Thin orchestrator. No business logic lives here — it only:
- *   1. Holds the two pieces of top-level state (lessonContent, activeNodeId, selectedId)
- *   2. Wires hooks together
- *   3. Renders layout + composed components
- *
- * Layout:
- *   TOP    — EditorToolbar
- *   LEFT   — ToolStrip
- *   CENTER — CanvasStage  +  FloatingElementPanel (when element selected)
- *   BOTTOM — EditorTimeline  (right-click node → NodeSettingsPopover)
- */
 import { useState } from 'react'
 import { BLANK_LESSON } from './constants'
 import { makeTextElement, makeImageElement, makeShapeElement } from './factories'
@@ -20,6 +6,7 @@ import { useNodeGraph } from './hooks/useNodeGraph'
 import { useSave } from './hooks/useSave'
 import { useContextMenu } from './hooks/useContextMenu'
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts'
+import TopToolBar from './components/topToolBar'
 import ToolStrip from './components/toolStrip'
 import EditorTimeline from './components/editorTimeline'
 import NodeSettingsPopover from './components/nodeSettingsPopover'
@@ -35,17 +22,14 @@ interface CanvasEditorProps {
 }
 
 export default function CanvasEditor({ lessonId, initial, token, onDone }: CanvasEditorProps) {
-  // ── Core state ─────────────────────────────────────────────────────────
   const [lessonContent, setLessonContent] = useState<LessonGraph>(initial ?? BLANK_LESSON)
   const [activeNodeId, setActiveNodeId] = useState<string>((initial ?? BLANK_LESSON).nodes[0].id)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // ── Derived ────────────────────────────────────────────────────────────
   const activeNode = lessonContent.nodes.find(n => n.id === activeNodeId) ?? lessonContent.nodes[0]
   const activeCanvas = activeNode.contentJson
   const selectedElement = activeCanvas.elements.find(el => el.id === selectedId) ?? null
 
-  // ── Hooks ──────────────────────────────────────────────────────────────
   const { contextMenu, contextMenuRef, openAt: openContextMenu, close: closeContextMenu } = useContextMenu()
 
   const { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage } =
@@ -59,58 +43,69 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
   useKeyboardShortcuts({
     selectedId,
     onDeleteElement: deleteElement,
-    onEscape: () => { closeContextMenu(); setSelectedId(null) }
+    onEscape: () => {
+      closeContextMenu()
+      setSelectedId(null)
+    },
   })
 
-  // ── Add-element helpers (need window.prompt, kept here intentionally) ──
-  function handleAddText() { addElement(makeTextElement()) }
+  function handleAddText() {
+    addElement(makeTextElement())
+  }
+
   function handleAddImage() {
     const url = window.prompt('Enter image URL:')
     if (url?.trim()) addElement(makeImageElement(url.trim()))
   }
-  function handleAddShape() { addElement(makeShapeElement()) }
 
-  // ── Context menu node ──────────────────────────────────────────────────
+  function handleAddShape() {
+    addElement(makeShapeElement())
+  }
+
   const contextNode = contextMenu
     ? lessonContent.nodes.find(n => n.id === contextMenu.nodeId) ?? null
     : null
 
-    
-  // ── Render ─────────────────────────────────────────────────────────────
   return (
-   <div className="flex flex-col flex-1 min-h-0 bg-[#0f1117]">
+    <div className="flex h-screen min-h-0 flex-col overflow-hidden bg-[#0f1117]">
 
       {saveError && (
-        <div style={{ background: '#450a0a', color: '#fca5a5', padding: '5px 14px', fontSize: 12, flexShrink: 0 }}>
+        <div className="shrink-0 bg-[#450a0a] px-4 py-1.5 text-xs text-[#fca5a5]">
           {saveError}
         </div>
       )}
+
       {saveSuccess && (
-        <div style={{ background: '#052e16', color: '#86efac', padding: '5px 14px', fontSize: 12, flexShrink: 0 }}>
+        <div className="shrink-0 bg-[#052e16] px-4 py-1.5 text-xs text-[#86efac]">
           Saved successfully
         </div>
       )}
-
-      {/* MIDDLE: ToolStrip + Canvas */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-
-        {/* LEFT */}
-        <ToolStrip
-          background={activeCanvas.canvas.background}
-          onAddText={handleAddText}
-          onAddImage={handleAddImage}
-          onAddShape={handleAddShape}
-          onBackgroundColorChange={setBackgroundColor}
-          onBackgroundImageChange={setBackgroundImage}   // ✅ add this
-          saving={saving}                                // ✅ add this
-          saveError={saveError}                          // ✅ add this
-          saveSuccess={saveSuccess}                      // ✅ add this
-          onSave={() => save(lessonContent)}
-          onDone={onDone}
+        <div className="shrink-0 px-4 py-2 border-b">
+          <TopToolBar
+            title="Lesson Editor"
+            onSave={() => save(lessonContent)}
           />
+        </div>
 
-        {/* CENTER */}
-        <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+
+        <div className="shrink-0">
+          <ToolStrip
+            background={activeCanvas.canvas.background}
+            onAddText={handleAddText}
+            onAddImage={handleAddImage}
+            onAddShape={handleAddShape}
+            onBackgroundColorChange={setBackgroundColor}
+            onBackgroundImageChange={setBackgroundImage}
+            saving={saving}
+            saveError={saveError}
+            saveSuccess={saveSuccess}
+            onSave={() => save(lessonContent)}
+            onDone={onDone}
+          />
+        </div>
+
+        <div className="relative min-w-0 flex-1 overflow-hidden">
           <CanvasStage
             canvasData={activeCanvas}
             selectedId={selectedId}
@@ -129,19 +124,19 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
         </div>
       </div>
 
-      {/* BOTTOM */}
-      <div className="h-28 shrink-0 border-t bg-[#11131a]">
+      <div className="shrink-0 border-t border-white/10 bg-[#11131a]">
         <EditorTimeline
           nodes={lessonContent.nodes}
           activeNodeId={activeNodeId}
-          onSelectNode={(id) => { setActiveNodeId(id); setSelectedId(null) }}
+          onSelectNode={(id) => {
+            setActiveNodeId(id)
+            setSelectedId(null)
+          }}
           onNodeContextMenu={openContextMenu}
           onAddNode={() => addNode()}
         />
       </div>
 
-
-      {/* Right-click popover */}
       {contextMenu && contextNode && (
         <NodeSettingsPopover
           ref={contextMenuRef}

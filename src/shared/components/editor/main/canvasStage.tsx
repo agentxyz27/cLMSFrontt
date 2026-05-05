@@ -1,18 +1,11 @@
-/**
- * CanvasStage.tsx
- *
- * Renders the canvas using react-konva.
- * Fixes ellipse position bug — Konva Ellipse centers at x/y,
- * so we store top-left x/y in state and offset to center for rendering,
- * then convert back on drag/transform end.
- *
- * Also renders background image if present in canvas config.
- */
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { Stage, Layer, Rect, Text, Image as KonvaImage, Ellipse, Transformer } from 'react-konva'
+import { useEffect } from 'react'
 import type Konva from 'konva'
 import type { CanvasStageProps } from './editorTypes'
 import type { CanvasElement, TextElementProps, ImageElementProps, ShapeElementProps } from '@/shared/types'
+import { useCanvasZoom } from './canvasEditor/hooks/useCanvasZoom'
+import { useCanvasPanning } from './canvasEditor/hooks/useCanvasPanning'
 
 function useImage(url: string): HTMLImageElement | null {
   const imgRef = useRef<HTMLImageElement | null>(null)
@@ -25,10 +18,8 @@ function useImage(url: string): HTMLImageElement | null {
 }
 
 function TextElement({ element, isSelected, onSelect, onChange }: {
-  element: CanvasElement
-  isSelected: boolean
-  onSelect: () => void
-  onChange: (updated: CanvasElement) => void
+  element: CanvasElement; isSelected: boolean
+  onSelect: () => void; onChange: (updated: CanvasElement) => void
 }) {
   const props = element.props as TextElementProps
   const nodeRef = useRef<Konva.Text>(null)
@@ -70,10 +61,8 @@ function TextElement({ element, isSelected, onSelect, onChange }: {
 }
 
 function ImageElement({ element, isSelected, onSelect, onChange }: {
-  element: CanvasElement
-  isSelected: boolean
-  onSelect: () => void
-  onChange: (updated: CanvasElement) => void
+  element: CanvasElement; isSelected: boolean
+  onSelect: () => void; onChange: (updated: CanvasElement) => void
 }) {
   const props = element.props as ImageElementProps
   const image = useImage(props.url)
@@ -115,10 +104,8 @@ function ImageElement({ element, isSelected, onSelect, onChange }: {
 }
 
 function ShapeElement({ element, isSelected, onSelect, onChange }: {
-  element: CanvasElement
-  isSelected: boolean
-  onSelect: () => void
-  onChange: (updated: CanvasElement) => void
+  element: CanvasElement; isSelected: boolean
+  onSelect: () => void; onChange: (updated: CanvasElement) => void
 }) {
   const props = element.props as ShapeElementProps
   const nodeRef = useRef<Konva.Rect | Konva.Ellipse>(null)
@@ -131,19 +118,12 @@ function ShapeElement({ element, isSelected, onSelect, onChange }: {
     }
   }, [isSelected])
 
-  // Ellipse fix — Konva centers ellipse at x/y
-  // We store top-left x/y, so offset to center for rendering
   const ellipseCenterX = element.x + element.width / 2
   const ellipseCenterY = element.y + element.height / 2
 
   const sharedDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
     if (props.shape === 'ellipse') {
-      // node.x() returns center after drag — convert back to top-left
-      onChange({
-        ...element,
-        x: e.target.x() - element.width / 2,
-        y: e.target.y() - element.height / 2
-      })
+      onChange({ ...element, x: e.target.x() - element.width / 2, y: e.target.y() - element.height / 2 })
     } else {
       onChange({ ...element, x: e.target.x(), y: e.target.y() })
     }
@@ -154,22 +134,10 @@ function ShapeElement({ element, isSelected, onSelect, onChange }: {
     const newWidth = Math.max(20, node.width() * node.scaleX())
     const newHeight = Math.max(20, node.height() * node.scaleY())
     node.scaleX(1); node.scaleY(1)
-
     if (props.shape === 'ellipse') {
-      // node.x() returns center — convert back to top-left
-      onChange({
-        ...element,
-        x: node.x() - newWidth / 2,
-        y: node.y() - newHeight / 2,
-        width: newWidth,
-        height: newHeight
-      })
+      onChange({ ...element, x: node.x() - newWidth / 2, y: node.y() - newHeight / 2, width: newWidth, height: newHeight })
     } else {
-      onChange({
-        ...element,
-        x: node.x(), y: node.y(),
-        width: newWidth, height: newHeight
-      })
+      onChange({ ...element, x: node.x(), y: node.y(), width: newWidth, height: newHeight })
     }
   }
 
@@ -178,30 +146,20 @@ function ShapeElement({ element, isSelected, onSelect, onChange }: {
       {props.shape === 'ellipse' ? (
         <Ellipse
           ref={nodeRef as React.RefObject<Konva.Ellipse>}
-          x={ellipseCenterX}
-          y={ellipseCenterY}
-          radiusX={element.width / 2}
-          radiusY={element.height / 2}
-          fill={props.fill}
-          stroke={props.stroke}
-          strokeWidth={props.strokeWidth}
-          draggable
-          onClick={onSelect} onTap={onSelect}
-          onDragEnd={sharedDragEnd}
-          onTransformEnd={sharedTransformEnd}
+          x={ellipseCenterX} y={ellipseCenterY}
+          radiusX={element.width / 2} radiusY={element.height / 2}
+          fill={props.fill} stroke={props.stroke} strokeWidth={props.strokeWidth}
+          draggable onClick={onSelect} onTap={onSelect}
+          onDragEnd={sharedDragEnd} onTransformEnd={sharedTransformEnd}
         />
       ) : (
         <Rect
           ref={nodeRef as React.RefObject<Konva.Rect>}
           x={element.x} y={element.y}
           width={element.width} height={element.height}
-          fill={props.fill}
-          stroke={props.stroke}
-          strokeWidth={props.strokeWidth}
-          draggable
-          onClick={onSelect} onTap={onSelect}
-          onDragEnd={sharedDragEnd}
-          onTransformEnd={sharedTransformEnd}
+          fill={props.fill} stroke={props.stroke} strokeWidth={props.strokeWidth}
+          draggable onClick={onSelect} onTap={onSelect}
+          onDragEnd={sharedDragEnd} onTransformEnd={sharedTransformEnd}
         />
       )}
       {isSelected && <Transformer ref={trRef} />}
@@ -209,37 +167,52 @@ function ShapeElement({ element, isSelected, onSelect, onChange }: {
   )
 }
 
-// Background image renderer
 function BackgroundImage({ url, width, height }: { url: string; width: number; height: number }) {
   const image = useImage(url)
   if (!image) return null
-  return (
-    <KonvaImage
-      x={0} y={0}
-      width={width} height={height}
-      image={image}
-      listening={false}
-    />
-  )
+  return <KonvaImage x={0} y={0} width={width} height={height} image={image} listening={false} />
 }
 
 export default function CanvasStage({ canvasData, selectedId, onSelect, onChange }: CanvasStageProps) {
   const { canvas, elements } = canvasData
 
+  const wrapperRef = useRef<HTMLDivElement>(null)
+
+  const { zoom, stageOffset, setStageOffset } = useCanvasZoom({ wrapperRef })
+
+  const { onMouseDown, onMouseMove, onMouseUp, onMouseLeave } = useCanvasPanning({
+    stageOffset,
+    onOffsetChange: setStageOffset,
+  })
+
   return (
-    <div style={{
-      overflow: 'auto', background: '#e5e5e5', flex: 1,
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '24px'
-    }}>
+    <div
+      ref={wrapperRef}
+      style={{
+        overflow: 'hidden',
+        background: '#e5e5e5',
+        flex: 1,
+        width: '100%',
+        height: '100%',
+        userSelect: 'none',
+      }}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseLeave}
+    >
       <Stage
-        width={canvas.width} height={canvas.height}
-        style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.15)' }}
+        width={wrapperRef.current?.clientWidth ?? canvas.width}
+        height={wrapperRef.current?.clientHeight ?? canvas.height}
+        scaleX={zoom}
+        scaleY={zoom}
+        x={stageOffset.x}
+        y={stageOffset.y}
         onMouseDown={e => {
           if (e.target === e.target.getStage()) onSelect(null)
         }}
       >
         <Layer>
-          {/* Background color */}
           <Rect
             x={0} y={0}
             width={canvas.width} height={canvas.height}
@@ -247,16 +220,10 @@ export default function CanvasStage({ canvasData, selectedId, onSelect, onChange
             listening={false}
           />
 
-          {/* Background image — rendered above color, below elements */}
           {canvas.backgroundImage && (
-            <BackgroundImage
-              url={canvas.backgroundImage}
-              width={canvas.width}
-              height={canvas.height}
-            />
+            <BackgroundImage url={canvas.backgroundImage} width={canvas.width} height={canvas.height} />
           )}
 
-          {/* Elements */}
           {elements.map(el => {
             const isSelected = el.id === selectedId
             if (el.type === 'text') return (
