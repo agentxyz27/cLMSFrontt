@@ -5,9 +5,9 @@ export const teacherClassroomApi = {
   getAll: (token: string) =>
     api.get<ClassRoom[]>('/teacher/classrooms', token),
 
-  getById: (id: string, token: string) =>
+  getById: (id: number, token: string) =>
     api.get<ClassRoom>(`/teacher/classrooms/${id}`, token),
 
-  create: (data: { subjectId: string; sectionId: string }, token: string) =>
+  create: (data: { subjectId: number; sectionId: number }, token: string) =>
     api.post<{ classRoom: ClassRoom }>('/teacher/classrooms', data, token),
 }

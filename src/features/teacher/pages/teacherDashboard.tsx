@@ -24,28 +24,26 @@ export default function TeacherDashboard() {
 
   return (
     <div className='flex flex-col min-h-screen gap-4'>
-
       <h1>Welcome, {user?.name || 'Teacher'}</h1>
-      
-        <div className='flex justify-center'>
-          <Card className='p-4 w-3/4 '>
-            <p>Total Classrooms: {classRooms.length}</p>
-            <p>Total Lessons: {totalLessons}</p>
+
+      <div className='flex justify-center'>
+        <Card className='p-4 w-3/4 '>
+          <p>Total Classrooms: {classRooms.length}</p>
+          <p>Total Lessons: {totalLessons}</p>
           <Button onClick={modal.openModal}>+ New Classroom</Button>
-          </Card>
-        </div>
+        </Card>
+      </div>
 
       <h2>My Classrooms</h2>
-        {classRooms.length === 0 ? (
-          <p>No classrooms yet. Create your first classroom!</p>
-        ) : (
-          <div className='flex flex-col gap-4'>
-            {classRooms.map((classRoom: ClassRoom) => (
-              <ClassRoomCard key={classRoom.id} classRoom={classRoom} />
-            ))}
-          </div>
-        )}
-
+      {classRooms.length === 0 ? (
+        <p>No classrooms yet. Create your first classroom!</p>
+      ) : (
+        <div className='flex flex-col gap-4'>
+          {classRooms.map((classRoom: ClassRoom) => (
+            <ClassRoomCard key={classRoom.id} classRoom={classRoom} />
+          ))}
+        </div>
+      )}
 
       {modal.showModal && (
         <CreateClassRoomModal
