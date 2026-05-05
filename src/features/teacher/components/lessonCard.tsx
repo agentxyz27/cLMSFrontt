@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
 import type { LessonSummary } from '@/shared/types'
 
+import { Button } from '@/components/ui/button'
+
 interface Props {
   lesson: LessonSummary
   classroomSlug: string
@@ -63,11 +65,11 @@ export default function LessonCard({ lesson, classroomSlug, publishingId, onRena
         </p>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-          <button onClick={() => navigate(`/teacher/classrooms/${classroomSlug}/lessons/${lesson.id}/edit`)}>Edit</button>
-          <button onClick={() => onPublish(lesson)} disabled={publishingId === lesson.id}>
+          <Button onClick={() => navigate(`/teacher/classrooms/${classroomSlug}/lessons/${lesson.id}/edit`)}>Edit</Button>
+          <Button onClick={() => onPublish(lesson)} disabled={publishingId === lesson.id}>
             {publishingId === lesson.id ? 'Publishing...' : 'Publish'}
-          </button>
-          <button onClick={() => onDelete(lesson.id)}>Delete</button>
+          </Button>
+          <Button variant="destructive" onClick={() => onDelete(lesson.id)}>Delete</Button>
         </div>
       </div>
     </div>

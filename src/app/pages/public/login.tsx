@@ -47,7 +47,7 @@ export default function Login() {
   return (
     <div className='flex  min-h-screen justify-center'>
 
-      <Card className='flex flex-wrap h-fit w-1/2 mt-24 p-8 gap-4'>
+      <Card className='flex flex-wrap h-fit w-1/2 p-8 gap-4'>
         <h1 className='text-center text-4xl font-semibold text-blue-500'>Login</h1>
         {sessionExpired && <p>Your session has expired. Please log in again.</p>}
 

@@ -26,6 +26,7 @@ import { Routes, Route } from 'react-router-dom'
 import PublicLayout from './layouts/publicLayout'
 import StudentLayout from './layouts/studentLayout'
 import TeacherLayout from './layouts/teacherLayout'
+import EditorLayout from './layouts/editorLayout'
 import ProtectedRoute from './routes/protectedRoute'
 import RoleRoute from './routes/roleRoute'
 
@@ -79,11 +80,21 @@ function App() {
             <Route path="dashboard" element={<TeacherDashboard />} />
             <Route path="templates" element={<TeacherTemplateBrowser />} />
             <Route path="classrooms/:id" element={<TeacherClassroomDetail />} />
-            <Route path="classrooms/:id/lessons/new" element={<TeacherLessonNew />} />
-            <Route path="classrooms/:id/lessons/:lessonId/edit" element={<TeacherLessonEdit />} />
           </Route>
         </Route>
       </Route>
+
+        <Route element={<ProtectedRoute />}>
+          <Route element={<RoleRoute allowed="teacher" />}>
+            <Route path="/teacher" element={<EditorLayout />}>
+               <Route path="classrooms/:id/lessons/new" element={<TeacherLessonNew />} />
+               <Route path="classrooms/:id/lessons/:lessonId/edit" element={<TeacherLessonEdit />} />
+            </Route>
+          </Route>
+        </Route>
+        
+
+
 
       {/* ── 404 ── catches any unmatched route */}
       <Route path="*" element={<NotFound />} />

@@ -4,6 +4,7 @@ import { useClassRoom } from '../hooks/useClassRoom'
 import { useLessonActions } from '../hooks/useLessonActions'
 import LessonCard from '../components/lessonCard'
 import { extractIdFromSlug, classRoomSlug } from '@/shared/utils/slugify'
+import { Button } from '@/components/ui/button'
 
 export default function TeacherClassroomDetail() {
   const { token } = useAuth()
@@ -22,15 +23,15 @@ export default function TeacherClassroomDetail() {
   const lessons = classRoom.lessons ?? []
 
   return (
-    <div>
-      <button onClick={() => navigate('/teacher/dashboard')}>← Back</button>
-      <h1>{classRoom.subject.name}</h1>
-      <p>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
+    <div className=''>
+      <Button onClick={() => navigate('/teacher/dashboard')}>← Back</Button>
+      <h1 className='text-center text-4xl'>{classRoom.subject.name}</h1>
+      <p className='text-center text-2xl font-semibold'>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
 
       {actionError && <p style={{ color: 'red' }}>{actionError}</p>}
 
       <div style={{ marginBottom: 24 }}>
-        <button onClick={() => navigate(`/teacher/classrooms/${slug}/lessons/new`)}>+ New Lesson</button>
+        <Button onClick={() => navigate(`/teacher/classrooms/${slug}/lessons/new`)}>+ New Lesson</Button>
       </div>
 
       <h2>Lessons ({lessons.length})</h2>
@@ -38,7 +39,7 @@ export default function TeacherClassroomDetail() {
       {lessons.length === 0 ? (
         <p>No lessons yet. Create your first lesson!</p>
       ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <div className=' justify-center' style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
           {lessons.map(lesson => (
             <LessonCard
               key={lesson.id}
