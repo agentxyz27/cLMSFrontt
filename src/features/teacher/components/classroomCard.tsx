@@ -14,8 +14,8 @@ export default function ClassRoomCard({ classRoom }: Props) {
 
   return (
     <Card className='p-4'>
-      <h3 className='text-center text-2xl'>{classRoom.subject.name}</h3>
-      <p>Grade {classRoom.section.grade.level} — {classRoom.section.name}</p>
+      <h3 className='text-center text-2xl'>Grade {classRoom.section.grade.level}: {classRoom.section.name}</h3>
+      <h4>{classRoom.subject.name}</h4>
       <p>Lessons: {classRoom._count?.lessons ?? 0}</p>
       <Button onClick={() => navigate(`/teacher/classrooms/${slug}`)}>Manage</Button>
     </Card>

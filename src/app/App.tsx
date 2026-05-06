@@ -42,6 +42,7 @@ import StudentBadges from '../features/student/pages/studentBadges'
 import StudentLeaderboard from '../features/student/pages/studentLeaderboard'
 
 import TeacherDashboard from '../features/teacher/pages/teacherDashboard'
+import TeacherClassrooms from '@/features/teacher/pages/teacherClassrooms'
 import TeacherClassroomDetail from '../features/teacher/pages/teacherClassroomDetail'
 import TeacherLessonNew from '../features/teacher/pages/teacherLessonNew'
 import TeacherLessonEdit from '../features/teacher/pages/teacherLessonEdit'
@@ -58,6 +59,24 @@ function App() {
         <Route path="/register" element={<Register />} />
       </Route>
 
+      {/* ── Teacher ── must be logged in AND role === teacher */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<RoleRoute allowed="teacher" />}>
+
+          <Route path="/teacher" element={<TeacherLayout />}>
+            <Route path="dashboard" element={<TeacherDashboard />} />
+            <Route path="classrooms" element={<TeacherClassrooms />} />
+            <Route path="templates" element={<TeacherTemplateBrowser />} />
+            <Route path="classrooms/:id" element={<TeacherClassroomDetail />} />
+          </Route>
+
+          <Route path="/teacher/classrooms/:id/lessons/new" element={<TeacherLessonNew />} />
+          <Route path="/teacher/classrooms/:id/lessons/:lessonId/edit" element={<TeacherLessonEdit />} />
+          
+        </Route>
+      </Route>
+
+      
       {/* ── Student ── must be logged in AND role === student */}
       <Route element={<ProtectedRoute />}>
         <Route element={<RoleRoute allowed="student" />}>
@@ -72,21 +91,6 @@ function App() {
         </Route>
       </Route>
 
-      {/* ── Teacher ── must be logged in AND role === teacher */}
-      <Route element={<ProtectedRoute />}>
-        <Route element={<RoleRoute allowed="teacher" />}>
-
-          <Route path="/teacher" element={<TeacherLayout />}>
-            <Route path="dashboard" element={<TeacherDashboard />} />
-            <Route path="templates" element={<TeacherTemplateBrowser />} />
-            <Route path="classrooms/:id" element={<TeacherClassroomDetail />} />
-          </Route>
-
-          <Route path="/teacher/classrooms/:id/lessons/new" element={<TeacherLessonNew />} />
-          <Route path="/teacher/classrooms/:id/lessons/:lessonId/edit" element={<TeacherLessonEdit />} />
-          
-        </Route>
-      </Route>
 
       {/* ── 404 ── catches any unmatched route */}
       <Route path="*" element={<NotFound />} />
