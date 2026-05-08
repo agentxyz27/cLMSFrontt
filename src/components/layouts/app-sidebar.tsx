@@ -1,7 +1,7 @@
 import * as React from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import { useAuth } from "@/context/authContext"
-import { teacherNavItems } from "@/shared/nav/teacherNav"
+import { teacherNavItems } from "@/components/layouts/teacherNav"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import {
   Sidebar,
@@ -55,7 +55,7 @@ export function AppSidebar({
 
       <SidebarContent>
         <SidebarMenu className="px-2 py-2">
-          {teacherNavItems.map(({ label, icon: Icon, path, isAction }) => {
+          {teacherNavItems.map(({ label, icon: Icon, path }) => {
             const active = isActive(path)
 
             return (
@@ -64,11 +64,6 @@ export function AppSidebar({
                   onClick={() => navigate(path)}
                   isActive={active}
                   tooltip={label}
-                  className={
-                    isAction
-                      ? "justify-start bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-                      : "justify-start"
-                  }
                 >
                   <Icon className="size-4" />
                   <span>{label}</span>

@@ -49,7 +49,7 @@ export default function TeacherClassroomDetail() {
             variant="ghost"
             size="sm"
             className="mb-1 -ml-2"
-            onClick={() => navigate('/teacher/dashboard')}
+            onClick={() => navigate('/teacher/classrooms')}
           >
             ← Back
           </Button>

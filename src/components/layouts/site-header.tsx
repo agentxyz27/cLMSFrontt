@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom"
-import { teacherNavItems } from "@/shared/nav/teacherNav"
+import { teacherNavItems } from "@/components/layouts/teacherNav"
 import { Button } from "@/components/ui/button"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Plus } from "lucide-react"
