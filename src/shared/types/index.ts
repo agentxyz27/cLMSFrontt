@@ -170,6 +170,7 @@ export interface LessonNode {
   type: LessonNodeType
   contentJson: CanvasData
   quiz?: QuizData
+  questionId?: number
   nextNodeId: string | null
   hintNodeId?: string | null
 }
@@ -287,4 +288,401 @@ export interface StudentBadge {
   studentId: number
   earnedAt: string
   badge: Badge
+}
+
+// ── Topic ──────────────────────────────────────────────────────────────────
+
+export interface Topic {
+  id: number
+  name: string
+  subjectId: number
+  prerequisiteTopicId: number | null
+}
+
+// ── Question ───────────────────────────────────────────────────────────────
+// templateType determines which frontend interaction component renders.
+// contentJson holds the full question config including answer key and hints.
+
+export type TemplateType = 'DRAG_MATCH' | 'FILL_STEP' | 'VISUAL_GROUPING' | 'NUMBER_LINE'
+
+export interface Question {
+  id: number
+  lessonId: number
+  topicId: number
+  templateType: TemplateType
+  contentJson: QuestionContent
+  order: number
+  createdAt: string
+  updatedAt: string
+  topic?: { id: number; name: string }
+  lesson?: { id: number; title: string }
+}
+
+export interface QuestionSummary {
+  id: number
+  lessonId: number
+  topicId: number
+  templateType: TemplateType
+  order: number
+  createdAt: string
+  topic?: { id: number; name: string }
+}
+
+// contentJson shape for each templateType
+// Frontend uses this to render the correct interaction component
+export interface QuestionContent {
+  prompt: string
+  hints?: string[]
+  // DRAG_MATCH
+  items?: { id: string; label: string }[]
+  targets?: { id: string; accepts: string }[]
+  // FILL_STEP
+  steps?: { id: string; text: string; isMissing?: boolean }[]
+  answer?: string
+  // VISUAL_GROUPING
+  groups?: { id: string; label: string }[]
+  // NUMBER_LINE
+  min?: number
+  max?: number
+  correctValue?: number
+}
+
+export interface ReorderPayload {
+  order: { id: number; order: number }[]
+}
+
+// ── QuestionAttemptSession ─────────────────────────────────────────────────
+// One row per student per question.
+// Created when student opens a question (SESSION_STARTED).
+// Finalized when SESSION_FINISHED is recorded.
+
+export interface QuestionAttemptSession {
+  id: number
+  sessionToken: string
+  questionId: number
+  studentId: number
+  attempts: number
+  hintsUsed: number
+  isSubmitted: boolean
+  correct: boolean | null      // null = not finished yet
+  startedAt: string
+  submittedAt: string | null
+  question?: Question
+  events?: QuestionAttemptEvent[]
+}
+
+// ── QuestionAttemptEvent ───────────────────────────────────────────────────
+// Atomic behavioral log — one row per event.
+// Immutable after write.
+
+export type AttemptEventType =
+  | 'SESSION_STARTED'
+  | 'HINT_OPENED'
+  | 'ANSWER_CHANGED'
+  | 'ATTEMPT_SUBMITTED'
+  | 'SESSION_FINISHED'
+
+export interface QuestionAttemptEvent {
+  id: number
+  sessionId: number
+  eventType: AttemptEventType
+  stepNumber: number
+  payload: Record<string, unknown> | null
+  createdAt: string
+}
+
+// ── Start / Submit response shapes ────────────────────────────────────────
+
+export interface StartSessionResponse {
+  resumed: boolean
+  session: QuestionAttemptSession
+}
+
+export interface SubmitAnswerResponse {
+  message: string
+  correct: boolean
+  finished: boolean
+  attempts?: number
+  session: QuestionAttemptSession
+}
+
+export interface UseHintResponse {
+  message: string
+  hintsUsed: number
+}
+
+export interface FinishSessionResponse {
+  message: string
+  correct: boolean
+  finished: boolean
+  session: QuestionAttemptSession
+}
+
+// ── Snapshots ──────────────────────────────────────────────────────────────
+// Immutable MPS records computed at lesson completion.
+
+export interface StudentLessonSnapshot {
+  id: number
+  studentId: number
+  lessonId: number
+  totalQuestions: number
+  correctCount: number
+  mps: number              // (correctCount / totalQuestions) * 100
+  avgAttempts: number
+  avgHintsUsed: number
+  isAtRisk: boolean        // mps < 75
+  snapshotAt: string
+  student?: { id: number; name: string }
+}
+
+export interface ClassLessonSnapshot {
+  id: number
+  classRoomId: number
+  lessonId: number
+  triggeredById: number | null
+  totalStudents: number
+  completedCount: number
+  avgMps: number
+  lowestMps: number
+  highestMps: number
+  atRiskCount: number
+  snapshotAt: string
+}
+
+// ── Detection Engine Types ─────────────────────────────────────────────────
+
+export interface AtRiskStudent {
+  studentId: number
+  name: string
+  mps: number
+  avgAttempts: number
+  avgHintsUsed: number
+  snapshotAt: string
+}
+
+export interface WeakTopic {
+  topicId: number
+  topicName: string
+  correctRate: number
+  avgAttempts: number
+  avgHints: number
+  totalStudents: number
+}
+
+export interface RegressionAlert {
+  studentId: number
+  name: string
+  previousMps: number
+  previousLesson: string
+  latestMps: number
+  latestLesson: string
+  drop: number
+  snapshotAt: string
+}
+
+export interface AtRiskResult {
+  total: number
+  students: AtRiskStudent[]
+}
+
+export interface WeakTopicsResult {
+  total: number
+  topics: WeakTopic[]
+}
+
+export interface RegressionResult {
+  total: number
+  regressions: RegressionAlert[]
+}
+
+export interface DetectionSummary {
+  atRisk: AtRiskResult
+  weakTopics: WeakTopicsResult
+  regression: RegressionResult
+}
+
+// ── Focus Engine Types ─────────────────────────────────────────────────────
+
+export type PriorityTier = 'urgent' | 'watch' | 'good'
+
+export interface PriorityStudent {
+  studentId: number
+  name: string
+  mps: number
+  avgAttempts: number
+  avgHintsUsed: number
+  isAtRisk: boolean
+  priority: PriorityTier
+  snapshotAt: string
+}
+
+export interface PriorityList {
+  totalStudents: number
+  completed: number
+  notStarted: number
+  urgent: number
+  watch: number
+  good: number
+  students: PriorityStudent[]
+}
+
+export interface WeakSpot {
+  topicId: number
+  topicName: string
+  correctRate: number
+  avgAttempts: number
+  avgHints: number
+}
+
+export interface ClassWeakSpots {
+  weakSpots: WeakSpot[]
+}
+
+export interface DrillDownQuestion {
+  questionId: number
+  topicId: number
+  topicName: string
+  templateType: string
+  order: number
+  correct: boolean | null
+  attempts: number
+  hintsUsed: number
+  startedAt: string
+  submittedAt: string | null
+}
+
+export interface StudentDrillDown {
+  studentId: number
+  name: string
+  mps: number | null
+  isAtRisk: boolean | null
+  snapshotAt: string | null
+  questions: DrillDownQuestion[]
+}
+
+export interface FocusSummary {
+  priorityList: PriorityList
+  classWeakSpots: ClassWeakSpots
+}
+
+// ── Template Engine / Assignment Types ────────────────────────────────────
+
+export type AssignmentStatus = 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'ARCHIVED'
+
+export interface AssignedActivity {
+  id: number
+  studentId: number
+  templateId: number
+  assignedById: number | null
+  sourceTopicId: number | null
+  sourceSnapshotId: number | null
+  reason: string | null
+  status: AssignmentStatus
+  dueDate: string | null
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+  student?: { id: number; name: string }
+  template?: { id: number; title: string; difficulty: number; interactionType?: string }
+  sourceTopic?: { id: number; name: string }
+  assignedBy?: { id: number; name: string }
+}
+
+export interface AssignRemediationPayload {
+  studentId: number
+  snapshotId: number
+  topicId: number
+  difficulty?: number
+  templateId?: number
+  reason?: string
+  dueDate?: string
+}
+
+export interface StudentAssignments {
+  studentId: number
+  name: string
+  total: number
+  activities: AssignedActivity[]
+}
+
+export interface ClassroomAssignments {
+  total: number
+  grouped: {
+    ASSIGNED: AssignedActivity[]
+    IN_PROGRESS: AssignedActivity[]
+    COMPLETED: AssignedActivity[]
+    ARCHIVED: AssignedActivity[]
+  }
+  activities: AssignedActivity[]
+}
+
+// ── Progress Engine Types ──────────────────────────────────────────────────
+
+export interface StudentProgressPoint {
+  lessonId: number
+  lessonTitle: string
+  mps: number | null
+  isAtRisk: boolean | null
+  avgAttempts: number | null
+  snapshotAt: string | null
+  completed: boolean
+}
+
+export interface StudentProgressResult {
+  studentId: number
+  name: string
+  improvement: number | null
+  trend: StudentProgressPoint[]
+}
+
+export interface ClassProgressPoint {
+  snapshotId: number
+  avgMps: number
+  lowestMps: number
+  highestMps: number
+  atRiskCount: number
+  completedCount: number
+  totalStudents: number
+  triggeredBy: string
+  snapshotAt: string
+}
+
+export interface ClassProgressResult {
+  total: number
+  improvement: number
+  trend: ClassProgressPoint[]
+}
+
+export interface ImprovementEntry {
+  studentId: number
+  name: string
+  originalMps: number
+  originalSnapshotAt: string
+  remediationDone: boolean
+  followUpMps: number | null
+  followUpLesson: number | null
+  followUpAt: string | null
+  mpsDelta?: number
+}
+
+export interface ImprovementReport {
+  total: number
+  improved: ImprovementEntry[]
+  noChange: ImprovementEntry[]
+  noData: ImprovementEntry[]
+}
+
+export interface HeatmapStudentRow {
+  studentId: number
+  name: string
+  scores: {
+    lessonId: number
+    lessonTitle: string
+    mps: number | null
+  }[]
+}
+
+export interface HeatmapData {
+  lessons: { id: number; title: string }[]
+  students: HeatmapStudentRow[]
 }

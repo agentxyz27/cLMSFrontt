@@ -44,9 +44,6 @@ export function AppSidebar({
     <Sidebar collapsible="icon" variant="inset" {...props}>
       <SidebarHeader className="border-b">
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex size-8 items-center justify-center rounded-lg bg-primary font-semibold text-primary-foreground">
-            T
-          </div>
           <div className="grid flex-1 text-left text-sm leading-tight">
             <span className="truncate font-semibold">Teacher Portal</span>
             <span className="truncate text-xs text-muted-foreground">

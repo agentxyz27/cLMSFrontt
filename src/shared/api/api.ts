@@ -71,9 +71,13 @@ export const api = {
   post: <T>(endpoint: string, body: unknown, token?: string | null) =>
     request<T>(endpoint, { method: 'POST', body: JSON.stringify(body) }, token),
 
-  /** Send data to update a resource */
+  /** Send data to replace a resource */
   put: <T>(endpoint: string, body: unknown, token?: string | null) =>
     request<T>(endpoint, { method: 'PUT', body: JSON.stringify(body) }, token),
+
+  /** Send data to partially update a resource */
+  patch: <T>(endpoint: string, body: unknown, token?: string | null) =>
+    request<T>(endpoint, { method: 'PATCH', body: JSON.stringify(body) }, token),
 
   /** Delete a resource */
   delete: <T>(endpoint: string, token?: string | null) =>
