@@ -83,11 +83,11 @@ function App() {
           <Route path="/student" element={<StudentLayout />}>
             <Route path="dashboard" element={<StudentDashboard />} />
             <Route path="classrooms/:id" element={<StudentClassroomDetail />} />
-            <Route path="classrooms/:id/lessons/:lessonId" element={<StudentLessonView />} />
             <Route path="progress" element={<StudentProgress />} />
             <Route path="badges" element={<StudentBadges />} />
             <Route path="leaderboard" element={<StudentLeaderboard />} />
           </Route>
+            <Route path="/student/classrooms/:id/lessons/:lessonId" element={<StudentLessonView />} />
         </Route>
       </Route>
 

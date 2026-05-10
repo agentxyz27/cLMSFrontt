@@ -26,10 +26,18 @@ export default function StudentLessonView() {
   if (!lesson?.contentJson) return <div>Lesson not found</div>
   if (!runner.currentNode) return <div>No nodes in this lesson.</div>
 
-  const alreadyCompleted = progressList.some(p => p.lessonId === Number(lessonId) && p.completed)
+  const alreadyCompleted = progressList.some(
+    p => p.lessonId === Number(lessonId) && p.completed
+  )
 
   if (alreadyCompleted && !runner.lessonDone)
-    return <LessonReviewMode title={lesson.title} graph={lesson.contentJson} classroomId={id!} />
+    return (
+      <LessonReviewMode
+        title={lesson.title}
+        graph={lesson.contentJson}
+        classroomId={id!}
+      />
+    )
 
   if (runner.lessonDone)
     return (
@@ -50,10 +58,21 @@ export default function StudentLessonView() {
       currentNode={runner.currentNode}
       currentNodeId={runner.currentNodeId!}
       classroomId={id!}
-      selectedChoice={runner.selectedChoice}
-      answerFeedback={runner.answerFeedback}
-      onSelectChoice={runner.setSelectedChoice}
-      onAnswer={runner.handleAnswer}
+
+      // legacy multiple choice — kept for quiz nodes without canvas interaction elements
+      selectedChoice={null}
+      answerFeedback={null}
+      onSelectChoice={() => {}}
+      onAnswer={() => {}}
+
+      // attempt pipeline
+      feedback={runner.feedback}
+      hintsUsed={runner.hintsUsed}
+      questionFinished={runner.questionFinished}
+      submitAnswer={runner.submitAnswer}
+      useHint={runner.useHint}
+      giveUp={runner.giveUp}
+
       onNext={runner.goToNode}
     />
   )

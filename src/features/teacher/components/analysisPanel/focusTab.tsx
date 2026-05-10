@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { useFocus } from '../../hooks/useFocus'
 import { useProgressEngine } from '../../hooks/useProgressEngine'
+import { useSnapshots } from '../../hooks/useSnapshots'
 import DrillDownView from './drillDownView'
+import AssignRemediationModal from '../assignRemediationModal'
 import StatCard from '@/shared/components/statCard'
 import MpsBadge from '@/shared/components/mpsBadge'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Separator } from '@/components/ui/separator'
-import type { StudentProgressResult } from '@/shared/types'
+import type { StudentProgressResult, PriorityStudent } from '@/shared/types'
 
 interface Props {
   classRoomId: number
@@ -33,10 +35,12 @@ export default function FocusTab({ classRoomId, lessonId, token }: Props) {
   } = useFocus(classRoomId, lessonId, token)
 
   const { getStudentProgress } = useProgressEngine(classRoomId, lessonId, token)
+  const { studentSnapshots } = useSnapshots(classRoomId, lessonId, token)
 
   const [selectedStudent, setSelectedStudent]   = useState<number | null>(null)
   const [studentProgress, setStudentProgress]   = useState<StudentProgressResult | null>(null)
   const [progressLoading, setProgressLoading]   = useState(false)
+  const [assignTarget, setAssignTarget]         = useState<PriorityStudent | null>(null)
 
   const handleStudentClick = async (studentId: number) => {
     if (selectedStudent === studentId) {
@@ -100,6 +104,16 @@ export default function FocusTab({ classRoomId, lessonId, token }: Props) {
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs capitalize">{s.priority}</Badge>
                 <MpsBadge mps={s.mps} />
+                {s.isAtRisk && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="text-xs h-7 px-2"
+                    onClick={e => { e.stopPropagation(); setAssignTarget(s) }}
+                  >
+                    Assign
+                  </Button>
+                )}
               </div>
             </div>
           ))}
@@ -161,6 +175,18 @@ export default function FocusTab({ classRoomId, lessonId, token }: Props) {
           </div>
         )}
       </div>
+
+      {/* Assign Remediation Modal */}
+      {assignTarget && (
+        <AssignRemediationModal
+          student={assignTarget}
+          snapshot={studentSnapshots.find(s => s.studentId === assignTarget.studentId) ?? null}
+          classRoomId={classRoomId}
+          token={token}
+          onClose={() => setAssignTarget(null)}
+          onAssigned={() => setAssignTarget(null)}
+        />
+      )}
 
     </div>
   )

@@ -1,4 +1,4 @@
-import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
+import { PreviewStage } from '@/shared/components/editor/stages'
 import type { Template } from '@/shared/types'
 
 interface Props {
@@ -26,7 +26,7 @@ export default function TemplateCard({ template, onClick, isSelected = false, pr
     >
       <div style={{ pointerEvents: 'none' }}>
         {firstNodeCanvas ? (
-          <CanvasPreview contentJson={firstNodeCanvas} previewWidth={previewWidth} />
+          <PreviewStage contentJson={firstNodeCanvas} previewWidth={previewWidth} />
         ) : (
           <div style={{ width: previewWidth, height, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <p style={{ color: '#999' }}>No preview</p>

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
+import { PreviewStage } from '@/shared/components/editor/stages'
 import type { LessonSummary } from '@/shared/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +39,7 @@ export default function LessonCard({
       {/* Canvas preview */}
       <div className="pointer-events-none w-full aspect-video bg-muted flex items-center justify-center overflow-hidden">
         {firstNodeCanvas ? (
-          <CanvasPreview contentJson={firstNodeCanvas} previewWidth={300} />
+          <PreviewStage contentJson={firstNodeCanvas} previewWidth={300} />
         ) : (
           <p className="text-sm text-muted-foreground">No content yet</p>
         )}

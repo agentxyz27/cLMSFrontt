@@ -73,14 +73,18 @@ export type CanvasElementProps =
   | TextElementProps
   | ImageElementProps
   | ShapeElementProps
+  | DragItemProps
+  | DragTargetProps
+  | McOptionProps
 
-export type CanvasElementType = 'text' | 'image' | 'shape'
+export type CanvasElementType = 'text' | 'image' | 'shape' | 'drag-item' | 'drag-target' | 'mc-option'
 
 export interface CanvasElement {
   id: string
   type: CanvasElementType
   x: number
   y: number
+  rotation: number
   width: number
   height: number
   props: CanvasElementProps
@@ -101,6 +105,32 @@ export interface CanvasConfig {
 export interface CanvasData {
   canvas: CanvasConfig
   elements: CanvasElement[]
+}
+
+// ── Drag Match ─────────────────────────────────────────────────────────────
+
+export interface DragItemProps {
+  label: string        // text shown on the draggable card
+  color: string        // background color of the card
+  textColor: string    // label text color
+}
+
+export interface DragTargetProps {
+  accepts: string      // id of the drag-item that belongs here
+  label: string        // label shown inside the drop zone (e.g. "One Half")
+  color: string        // border/background color of the drop zone
+}
+
+// ── Multiple Choice Option ─────────────────────────────────────────────────
+// Teacher places mc-option elements on canvas freely.
+// correctIndex is stored at the node level (existing QuizData).
+// Each option element has an index that maps to QuizData.correctIndex.
+
+export interface McOptionProps {
+  label: string        // choice text
+  index: number        // 0-based index — maps to QuizData.correctIndex
+  color: string        // background color
+  textColor: string    // text color
 }
 
 // ── Grade & Section ────────────────────────────────────────────────────────
@@ -236,6 +266,9 @@ export interface Template {
   id: number
   title: string
   contentJson: LessonGraph        // never null — templates always have content
+  topicId: number           // ← add
+  difficulty: number        // ← add
+  interactionType: string   // ← add
   isPublic: boolean
   usageCount: number
   teacher?: { id: number; name: string } | null
@@ -246,6 +279,9 @@ export interface Template {
 export interface TemplateSummary {
   id: number
   title: string
+  topicId: number
+  difficulty: number
+  interactionType: string
   isPublic: boolean
   usageCount: number
   teacher?: { id: number; name: string } | null
@@ -686,3 +722,4 @@ export interface HeatmapData {
   lessons: { id: number; title: string }[]
   students: HeatmapStudentRow[]
 }
+

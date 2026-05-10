@@ -24,6 +24,7 @@ export interface CanvasStageProps {
   selectedId: string | null
   onSelect: (id: string | null) => void
   onChange: (updated: CanvasElement) => void
+  onLinkTarget: (targetId: string, acceptsItemId: string) => void
 }
 
 /**
@@ -38,15 +39,6 @@ export interface PropertiesPanelProps {
 /**
  * Props passed down to EditorToolbar.
  */
-export interface EditorToolbarProps {
-  saving: boolean
-  onAddText: () => void
-  onAddImage: () => void
-  onAddShape: () => void
-  onSave: () => void
-  onDone: () => void
-}
-
 // Additional types for future features
 export interface EditorToolbarProps {
   saving: boolean

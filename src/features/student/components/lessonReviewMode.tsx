@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { CanvasRenderer, NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/main/canvasRenderer'
+import { ViewerStage } from '@/shared/components/editor/stages'
+import { NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/canvasEditor/constants'
 import type { LessonGraph } from '@/shared/types'
 
 interface Props {
@@ -32,7 +33,7 @@ export default function LessonReviewMode({ title, graph, classroomId }: Props) {
               <span style={{ fontSize: 13, color: '#555' }}>{index + 1}. {NODE_TYPE_LABEL[node.type]}</span>
             </div>
             <div ref={index === 0 ? containerRef : null} style={{ width: '100%', overflowX: 'hidden' }}>
-              <CanvasRenderer canvasData={node.contentJson} scale={scale} />
+              <ViewerStage canvasData={node.contentJson} scale={scale} />
             </div>
           </div>
         ))}

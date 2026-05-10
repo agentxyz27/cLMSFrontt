@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import CanvasPreview from '@/shared/components/editor/main/canvasPreview'
+import { PreviewStage } from '@/shared/components/editor/stages'
 import type { LessonSummary } from '@/shared/types'
 
 interface Props {
@@ -16,7 +16,7 @@ export default function StudentLessonCard({ lesson, classroomId, isCompleted }: 
     <div style={{ border: `1px solid ${isCompleted ? '#86efac' : '#eee'}`, borderRadius: 8, overflow: 'hidden', width: 300, boxShadow: '0 1px 4px rgba(0,0,0,0.08)' }}>
       <div style={{ pointerEvents: 'none', position: 'relative' }}>
         {firstNodeCanvas ? (
-          <CanvasPreview contentJson={firstNodeCanvas} previewWidth={300} />
+          <PreviewStage contentJson={firstNodeCanvas} previewWidth={300} />
         ) : (
           <div style={{ width: 300, height: 169, background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <p style={{ color: '#999' }}>No content yet</p>

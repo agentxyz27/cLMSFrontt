@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import CanvasPreview from './editor/main/canvasPreview'
+import { PreviewStage } from './editor/stages'
 import type { LessonGraph, LessonNode } from '../types'
 
 interface GraphPreviewProps {
@@ -64,7 +64,7 @@ export default function GraphPreview({
     <div>
       {/* Canvas */}
       {canvas ? (
-        <CanvasPreview contentJson={canvas} previewWidth={previewWidth} />
+        <PreviewStage contentJson={canvas} previewWidth={previewWidth} />
       ) : (
         <div
           style={{

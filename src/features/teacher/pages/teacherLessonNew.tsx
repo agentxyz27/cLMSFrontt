@@ -15,7 +15,7 @@ import { useTemplates } from '../hooks/useTemplates'
 import { useNewLessonFlow } from '../hooks/useNewLessonFlow'
 import LessonTitleStep from '../components/lessonTitleStep'
 import LessonChooseStep from '../components/lessonChooseStep'
-import CanvasEditor from '@/shared/components/editor/main/canvasEditor'
+import CanvasEditor from '@/shared/components/editor/canvasEditor'
 import { extractIdFromSlug } from '@/shared/utils/slugify'
 
 export default function TeacherLessonNew() {

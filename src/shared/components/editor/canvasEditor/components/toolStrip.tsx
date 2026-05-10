@@ -3,7 +3,12 @@
  * Replaces EditorToolbar entirely: holds element tools, canvas background,
  * bg-image, save, and done/exit. Save status is shown as a small toast
  * that appears briefly below the save button.
+ *
+ * When isQuizNode is true, shows interactive element tools:
+ * drag-item, drag-target, mc-option
  */
+import React from 'react'
+import { Type, Image, Square } from 'lucide-react'
 
 interface ToolStripProps {
   // canvas
@@ -13,6 +18,11 @@ interface ToolStripProps {
   onAddShape: () => void
   onBackgroundColorChange: (color: string) => void
   onBackgroundImageChange: (url: string) => void
+  // interactive elements — only shown on quiz nodes
+  isQuizNode: boolean
+  onAddDragItem: () => void
+  onAddDragTarget: () => void
+  onAddMcOption: () => void
   // save / exit
   saving: boolean
   saveError: string | null
@@ -56,6 +66,18 @@ function Divider() {
   return <div style={{ width: 28, height: 1, background: '#2a2d3a', margin: '4px 0' }} />
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 8, fontWeight: 700, letterSpacing: '0.08em',
+      color: '#4b5568', textTransform: 'uppercase',
+      marginTop: 4, marginBottom: 2
+    }}>
+      {children}
+    </div>
+  )
+}
+
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function ToolStrip({
@@ -65,6 +87,10 @@ export default function ToolStrip({
   onAddShape,
   onBackgroundColorChange,
   onBackgroundImageChange,
+  isQuizNode,
+  onAddDragItem,
+  onAddDragTarget,
+  onAddMcOption,
   saving,
   saveError,
   saveSuccess,
@@ -87,20 +113,35 @@ export default function ToolStrip({
       alignItems: 'center',
       padding: '10px 0',
       gap: 2,
-      flexShrink: 0
+      flexShrink: 0,
+      overflowY: 'auto'
     }}>
 
       {/* ── Element tools ── */}
-      {iconBtn('Add text',  onAddText,  <span style={{ fontWeight: 700 }}>T</span>)}
-      {iconBtn('Add image', onAddImage, '🖼')}
-      {iconBtn('Add shape', onAddShape, '▭')}
+      {iconBtn('Add text', onAddText, <Type size={18} />)}
+      {iconBtn('Add image', onAddImage, <Image size={18} />)}
+      {iconBtn('Add shape', onAddShape, <Square size={18} />)}
 
       <Divider />
+
+      {/* ── Interactive tools — quiz nodes only ── */}
+      {isQuizNode && (
+        <>
+          <SectionLabel>Quiz</SectionLabel>
+          {iconBtn('Add drag item',   onAddDragItem,   '✋', '#f59e0b')}
+          {iconBtn('Add drag target', onAddDragTarget, '🎯', '#10b981')}
+          {iconBtn('Add MC option',   onAddMcOption,   'A)', '#6366f1')}
+          <Divider />
+        </>
+      )}
 
       {/* ── Background color swatch ── */}
       <div
         title="Canvas background color"
-        style={{ position: 'relative', width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        style={{
+          position: 'relative', width: 36, height: 36,
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}
       >
         <div style={{
           width: 22, height: 22, borderRadius: 5,
@@ -113,7 +154,10 @@ export default function ToolStrip({
           type="color"
           value={background}
           onChange={e => onBackgroundColorChange(e.target.value)}
-          style={{ opacity: 0, position: 'absolute', inset: 0, width: '100%', height: '100%', cursor: 'crosshair' }}
+          style={{
+            opacity: 0, position: 'absolute', inset: 0,
+            width: '100%', height: '100%', cursor: 'crosshair'
+          }}
         />
       </div>
 
@@ -130,9 +174,7 @@ export default function ToolStrip({
         {iconBtn(
           saving ? 'Saving…' : 'Save (⌘S)',
           onSave,
-          saving
-            ? <span style={{ fontSize: 11 }}>…</span>
-            : '💾',
+          saving ? <span style={{ fontSize: 11 }}>…</span> : '💾',
           '#10b981'
         )}
 
@@ -140,8 +182,7 @@ export default function ToolStrip({
         {(saveSuccess || saveError) && (
           <div style={{
             position: 'absolute',
-            left: 44,
-            top: 4,
+            left: 44, top: 4,
             whiteSpace: 'nowrap',
             background: saveError ? '#450a0a' : '#052e16',
             color: saveError ? '#fca5a5' : '#86efac',
@@ -159,6 +200,7 @@ export default function ToolStrip({
 
       {/* ── Done / exit ── */}
       {iconBtn('Exit editor', onDone, '✕', '#ef4444')}
+
     </div>
   )
 }

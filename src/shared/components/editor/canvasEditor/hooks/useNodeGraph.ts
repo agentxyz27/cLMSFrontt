@@ -10,10 +10,7 @@ interface UseNodeGraphOptions {
 }
 
 export function useNodeGraph({
-  setLessonContent,
-  setActiveNodeId,
-  setSelectedId,
-  closeContextMenu
+  setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu
 }: UseNodeGraphOptions) {
 
   const updateNode = useCallback(
@@ -22,8 +19,7 @@ export function useNodeGraph({
         ...prev,
         nodes: prev.nodes.map(n => n.id === nodeId ? updater(n) : n)
       }))
-    },
-    [setLessonContent]
+    }, [setLessonContent]
   )
 
   const addNode = useCallback(() => {
@@ -43,43 +39,44 @@ export function useNodeGraph({
       setActiveNodeId(remaining[Math.max(0, deletedIndex - 1)].id)
       setSelectedId(null)
       closeContextMenu()
-    },
-    [setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu]
+    }, [setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu]
   )
 
   const changeNodeType = useCallback(
     (nodeId: string, type: LessonNodeType) => {
       updateNode(nodeId, prev => ({
-        ...prev,
-        type,
+        ...prev, type,
         quiz: type === 'quiz'
           ? (prev.quiz ?? { question: '', choices: ['', '', '', ''], correctIndex: 0 })
           : undefined
       }))
-    },
-    [updateNode]
+    }, [updateNode]
   )
 
   const setNextNode = useCallback(
     (nodeId: string, nextNodeId: string | null) => {
       updateNode(nodeId, prev => ({ ...prev, nextNodeId }))
-    },
-    [updateNode]
+    }, [updateNode]
   )
 
   const setHintNode = useCallback(
     (nodeId: string, hintNodeId: string | null) => {
       updateNode(nodeId, prev => ({ ...prev, hintNodeId }))
-    },
-    [updateNode]
+    }, [updateNode]
   )
 
   const updateQuiz = useCallback(
     (nodeId: string, quiz: QuizData) => {
       updateNode(nodeId, prev => ({ ...prev, quiz }))
-    },
-    [updateNode]
+    }, [updateNode]
   )
 
-  return { addNode, deleteNode, changeNodeType, setNextNode, setHintNode, updateQuiz, updateNode }
+  // Links a Question DB record to a node after creation
+  const setQuestionId = useCallback(
+    (nodeId: string, questionId: number) => {
+      updateNode(nodeId, prev => ({ ...prev, questionId }))
+    }, [updateNode]
+  )
+
+  return { addNode, deleteNode, changeNodeType, setNextNode, setHintNode, updateQuiz, updateNode, setQuestionId }
 }

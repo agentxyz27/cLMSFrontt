@@ -1,5 +1,5 @@
 import React from 'react'
-import CanvasPreview from '../../canvasPreview'
+import { PreviewStage } from '../../stages'
 import { NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '../constants'
 import type { LessonNode } from '@/shared/types'
 
@@ -54,7 +54,7 @@ export default function EditorTimeline({
             }}
           >
             <div style={{ flex: 1, pointerEvents: 'none', overflow: 'hidden' }}>
-              <CanvasPreview contentJson={node.contentJson} previewWidth={132} />
+              <PreviewStage contentJson={node.contentJson} previewWidth={132} />
             </div>
             <div style={{
               padding: '3px 7px',
