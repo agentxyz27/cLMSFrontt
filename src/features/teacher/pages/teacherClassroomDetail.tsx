@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { LessonSummary } from '@/shared/types'
 
+import { ClassHealthPanel } from '../components/analysisPanel/classHealthPanel'
+
 export default function TeacherClassroomDetail() {
   const { token } = useAuth()
   const { id: rawId } = useParams()
@@ -66,6 +68,9 @@ export default function TeacherClassroomDetail() {
       {actionError && (
         <p className="text-sm text-destructive">{actionError}</p>
       )}
+    
+      {/*prototype*/}
+      <ClassHealthPanel classRoomId={classRoom.id}/>
 
       {/* Lessons grid */}
       <div>

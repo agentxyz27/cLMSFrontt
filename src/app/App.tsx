@@ -48,6 +48,8 @@ import TeacherLessonNew from '../features/teacher/pages/teacherLessonNew'
 import TeacherLessonEdit from '../features/teacher/pages/teacherLessonEdit'
 import TeacherTemplateBrowser from '../features/teacher/pages/teacherTemplateBrowser'
 
+import WalangWala from '@/features/teacher/pages/teacherStudents'
+
 function App() {
   return (
     <Routes>
@@ -68,6 +70,8 @@ function App() {
             <Route path="classrooms" element={<TeacherClassrooms />} />
             <Route path="templates" element={<TeacherTemplateBrowser />} />
             <Route path="classrooms/:id" element={<TeacherClassroomDetail />} />
+            <Route path="walakapake/:roomId" element={<WalangWala/>} />
+
           </Route>
 
           <Route path="/teacher/classrooms/:id/lessons/new" element={<TeacherLessonNew />} />

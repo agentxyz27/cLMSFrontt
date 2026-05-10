@@ -11,5 +11,5 @@ export const teacherNavItems = [
   { label: "Classrooms", icon: School, path: "/teacher/classrooms" },
   { label: "Students", icon: UserRound, path: "/teacher/lessons/new"},
   { label: "Templates", icon: LayoutTemplate, path: "/teacher/templates" },
-  { label: "Progress", icon: BarChart2, path: "/teacher/progress" },
+  { label: "Progress", icon: BarChart2, path: "/teacher/walakapake/1" },
 ]
