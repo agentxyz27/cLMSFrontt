@@ -15,7 +15,7 @@ import EditorTimeline from './components/editorTimeline'
 import NodeSettingsPopover from './components/nodeSettingsPopover'
 import FloatingElementPanel from './components/floatingElementPanel'
 import DragMatchToolPanel from './components/dragMatchtoolPanel'
-import CanvasStage from '../stages/editorStage'
+import { EditorStage } from '../stages'
 import type { LessonGraph } from '@/shared/types'
 
 interface CanvasEditorProps {
@@ -127,9 +127,10 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
 
         {/* Canvas */}
         <div className="relative min-w-0 flex-1 overflow-hidden">
-          <CanvasStage
+          <EditorStage
             canvasData={activeCanvas}
             selectedId={selectedId}
+            onLinkTarget={handleLinkTarget}
             onSelect={setSelectedId}
             onChange={updateElement}
           />
