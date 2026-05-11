@@ -163,9 +163,18 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
         <EditorTimeline
           nodes={lessonContent.nodes}
           activeNodeId={activeNodeId}
-          onSelectNode={(id) => { setActiveNodeId(id); setSelectedId(null) }}
+          onSelectNode={(id) => {
+            setActiveNodeId(id)
+            setSelectedId(null)
+          }}
           onNodeContextMenu={openContextMenu}
-          onAddNode={() => addNode()}
+          onAddNode={addNode}
+          onReorderNodes={(newNodes) => {
+            setLessonContent(prev => ({
+              ...prev,
+              nodes: newNodes
+            }))
+          }}
         />
       </div>
 

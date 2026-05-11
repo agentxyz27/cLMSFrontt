@@ -4,7 +4,6 @@ import { useSections } from '../hooks/useSections'
 import { useCreateClassRoom } from '../hooks/useCreateClassRoom'
 import ClassRoomCard from '../components/classroomCard'
 import CreateClassRoomModal from '../components/createClassroomModal'
-import StatCard from '@/shared/components/statCard'
 import type { ClassRoom } from '@/shared/types'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -31,7 +30,6 @@ export default function TeacherClassrooms() {
 
   if (error) return <p className="text-destructive text-sm">Error: {error}</p>
 
-  const totalLessons = classRooms.reduce((sum, c) => sum + (c._count?.lessons ?? 0), 0)
 
   return (
     <div className="space-y-6">
@@ -39,20 +37,6 @@ export default function TeacherClassrooms() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <Button onClick={modal.openModal}>+ New Classroom</Button>
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4">
-        <StatCard
-          label="Classrooms"
-          value={classRooms.length}
-          accent="blue"
-        />
-        <StatCard
-          label="Total Lessons"
-          value={totalLessons}
-          accent="green"
-        />
       </div>
 
       {/* Classrooms grid */}

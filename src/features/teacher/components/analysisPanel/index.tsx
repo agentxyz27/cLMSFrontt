@@ -15,11 +15,11 @@ interface Props {
   onClose: () => void
 }
 
-export default function AnalysisPanel({ lesson, classRoomId, token, onClose }: Props) {
+export default function AnalysisPanel({ lesson, classRoomId, token }: Props) {
   const { latest, generating, generateReport } = useSnapshots(classRoomId, lesson.id, token)
 
   return (
-    <div className="border rounded-xl p-6 space-y-5 bg-card">
+    <div className="border rounded-xl p-12 space-y-5 bg-card">
 
       {/* Panel header */}
       <div className="flex items-center justify-between">
@@ -31,7 +31,6 @@ export default function AnalysisPanel({ lesson, classRoomId, token, onClose }: P
           <Button size="sm" onClick={generateReport} disabled={generating}>
             {generating ? 'Generating...' : 'Generate Report'}
           </Button>
-          <Button variant="ghost" size="sm" onClick={onClose}>✕</Button>
         </div>
       </div>
 

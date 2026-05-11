@@ -5,12 +5,15 @@ import { useClassRoom } from '../hooks/useClassRoom'
 import { useLessonActions } from '../hooks/useLessonActions'
 import LessonCard from '../components/lessonCard'
 import AnalysisPanel from '../components/analysisPanel'
+import { ClassHealthPanel } from '../components/analysisPanel/classHealthPanel'
 import { extractIdFromSlug, classRoomSlug } from '@/shared/utils/slugify'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import {
+  Sheet,
+  SheetContent,
+} from '@/components/ui/sheet'
 import type { LessonSummary } from '@/shared/types'
-
-import { ClassHealthPanel } from '../components/analysisPanel/classHealthPanel'
 
 export default function TeacherClassroomDetail() {
   const { token } = useAuth()
@@ -27,10 +30,9 @@ export default function TeacherClassroomDetail() {
   if (loading) return (
     <div className="space-y-4">
       <Skeleton className="h-10 w-48" />
+      <Skeleton className="h-40 w-full" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Skeleton className="h-64" />
-        <Skeleton className="h-64" />
-        <Skeleton className="h-64" />
+        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-48" />)}
       </div>
     </div>
   )
@@ -68,9 +70,9 @@ export default function TeacherClassroomDetail() {
       {actionError && (
         <p className="text-sm text-destructive">{actionError}</p>
       )}
-    
-      {/*prototype*/}
-      <ClassHealthPanel classRoomId={classRoom.id}/>
+
+      {/* Classroom health — always visible, no lesson selection needed */}
+      <ClassHealthPanel classRoomId={classRoom.id} />
 
       {/* Lessons grid */}
       <div>
@@ -105,10 +107,10 @@ export default function TeacherClassroomDetail() {
                   size="sm"
                   className="w-full"
                   onClick={() =>
-                    setSelectedLesson(selectedLesson?.id === lesson.id ? null : lesson)
+                    setSelectedLesson(prev => prev?.id === lesson.id ? null : lesson)
                   }
                 >
-                  {selectedLesson?.id === lesson.id ? 'Close Analysis' : 'Analyze'}
+                  Analyze
                 </Button>
               </div>
             ))}
@@ -116,15 +118,25 @@ export default function TeacherClassroomDetail() {
         )}
       </div>
 
-      {/* Analysis panel */}
-      {selectedLesson && token && (
-        <AnalysisPanel
-          lesson={selectedLesson}
-          classRoomId={classRoom.id}
-          token={token}
-          onClose={() => setSelectedLesson(null)}
-        />
-      )}
+      {/* Analysis drawer */}
+      <Sheet
+        open={!!selectedLesson}
+        onOpenChange={open => { if (!open) setSelectedLesson(null) }}
+      >
+        <SheetContent
+          side="right"
+          className="!w-[75vw] !max-w-none overflow-y-auto bg-transparent border-none"
+        >
+          {selectedLesson && token && (
+            <AnalysisPanel
+              lesson={selectedLesson}
+              classRoomId={classRoom.id}
+              token={token}
+              onClose={() => setSelectedLesson(null)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
     </div>
   )
