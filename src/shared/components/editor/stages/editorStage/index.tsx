@@ -7,7 +7,6 @@ import type { DragTargetProps } from '@/shared/types'
 import { BackgroundImage } from '@/shared/components/editor/elements/konva'
 import { useLinkMode } from '@/shared/components/editor/canvasEditor/hooks/useLinkMode'
 import { useCanvasZoom } from '@/shared/components/editor/canvasEditor/hooks/useCanvasZoom'
-import { useCanvasPanning } from '@/shared/components/editor/canvasEditor/hooks/useCanvasPanning'
 import { useTransformer } from '@/shared/components/editor/hooks/useTransformer'
 import { EditorElementDispatcher } from './editorElementDispatcher'
 import { DragLinkPopover } from '@/shared/components/editor/overlays/dragLinkPopOver'
@@ -18,10 +17,7 @@ export function EditorStage({ canvasData, selectedId, onSelect, onChange, onLink
   const wrapperRef = useRef<HTMLDivElement>(null)
 
   const { trRef, nodeRefCallback } = useTransformer({ selectedId })
-  const { zoom, stageOffset, setStageOffset } = useCanvasZoom({ wrapperRef })
-  const { onMouseDown, onMouseMove, onMouseUp, onMouseLeave } = useCanvasPanning({
-    stageOffset, onOffsetChange: setStageOffset,
-  })
+  const { zoom, stageOffset } = useCanvasZoom({ wrapperRef })
 
   const dragItems = elements.filter(e => e.type === 'drag-item')
 
@@ -40,8 +36,6 @@ export function EditorStage({ canvasData, selectedId, onSelect, onChange, onLink
         userSelect: 'none', position: 'relative',
         cursor: linkMode ? 'crosshair' : 'default',
       }}
-      onMouseDown={onMouseDown} onMouseMove={onMouseMove}
-      onMouseUp={onMouseUp} onMouseLeave={onMouseLeave}
     >
       <Stage
         width={wrapperRef.current?.clientWidth ?? canvas.width}
