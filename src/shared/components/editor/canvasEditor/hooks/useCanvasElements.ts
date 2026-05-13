@@ -68,5 +68,27 @@ export function useCanvasElements({
     [updateActiveCanvas]
   )
 
-  return { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage }
+
+  const bringForward = useCallback((id: string) => {
+    updateActiveCanvas(prev => {
+      const els = [...prev.elements]
+      const i = els.findIndex(el => el.id === id)
+      if (i === -1 || i === els.length - 1) return prev
+      ;[els[i], els[i + 1]] = [els[i + 1], els[i]]
+      return { ...prev, elements: els }
+    })
+  }, [updateActiveCanvas])
+
+  const sendBackward = useCallback((id: string) => {
+    updateActiveCanvas(prev => {
+      const els = [...prev.elements]
+      const i = els.findIndex(el => el.id === id)
+      if (i <= 0) return prev
+      ;[els[i], els[i - 1]] = [els[i - 1], els[i]]
+      return { ...prev, elements: els }
+    })
+  }, [updateActiveCanvas])
+
+
+  return { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage, bringForward, sendBackward }
 }

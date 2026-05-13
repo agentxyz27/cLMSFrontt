@@ -2,7 +2,7 @@
 import { useRef, useEffect } from 'react'
 import { Text } from 'react-konva'
 import type Konva from 'konva'
-import type { CanvasElement, TextElementProps } from '@/shared/types'
+import type { TextElementProps } from '@/shared/types'
 import type { BaseElementProps } from './types'
 
 export function TextElement({ element, onSelect, onChange, nodeRefCallback }: BaseElementProps) {
@@ -21,12 +21,22 @@ export function TextElement({ element, onSelect, onChange, nodeRefCallback }: Ba
       onTap={onSelect}
       onDragEnd={e => onChange({ ...element, x: e.target.x(), y: e.target.y() })}
       onTransformEnd={e => {
-        const node = e.target
-        onChange({ ...element, x: node.x(), y: node.y(),
-          width: Math.max(50, node.width() * node.scaleX()),
-          height: Math.max(20, node.height() * node.scaleY()) })
-        node.scaleX(1); node.scaleY(1)
-      }}
+      const node = e.target as Konva.Text
+      const scaleX = node.scaleX()
+      const scaleY = node.scaleY()
+      node.scaleX(1); node.scaleY(1)
+      onChange({
+        ...element,
+        x: node.x(),
+        y: node.y(),
+        width: Math.max(50, node.width() * scaleX),
+        height: Math.max(20, node.height() * scaleY),
+        props: {
+          ...props,
+          fontSize: Math.max(8, Math.round(props.fontSize * scaleY)),
+        },
+      })
+    }}
     />
   )
 }

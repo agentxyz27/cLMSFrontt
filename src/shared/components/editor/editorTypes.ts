@@ -33,6 +33,8 @@ export interface CanvasStageProps {
 export interface PropertiesPanelProps {
   element: CanvasElement | null
   onChange: (updated: CanvasElement) => void
+  onBringForward: () => void
+  onSendBackward: () => void
   onDelete: (id: string) => void
 }
 

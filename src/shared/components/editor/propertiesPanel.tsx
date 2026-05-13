@@ -1,256 +1,185 @@
-/**
- * PropertiesPanel.tsx
- *
- * Right panel of the canvas editor.
- * Shows editable properties for the currently selected element.
- * If nothing is selected, shows a placeholder message.
- *
- * Supports:
- *   text  → text content, font size, color, font style, alignment
- *   image → alt text, image URL (replace image)
- *   shape → fill color, stroke color, stroke width
- *
- * onChange is called immediately on every field change — no confirm step.
- * Parent (CanvasEditor) holds state and re-renders the canvas.
- */
-
 import type { PropertiesPanelProps } from './editorTypes'
-import type {
-  TextElementProps,
-  ImageElementProps,
-  ShapeElementProps,
-  CanvasElement,
-  CanvasElementProps
-} from '@/shared/types'
+import type { TextElementProps, ImageElementProps, ShapeElementProps, CanvasElement, CanvasElementProps } from '@/shared/types'
 
-export default function PropertiesPanel({
-  element,
-  onChange,
-  onDelete
-}: PropertiesPanelProps) {
-  if (!element) {
-    return (
-      <div style={{
-        width: '220px',
-        borderLeft: '1px solid #ddd',
-        padding: '16px',
-        background: '#fafafa',
-        color: '#999',
-        fontSize: '14px'
-      }}>
-        <p>Select an element to edit its properties.</p>
+const s = {
+  section: { padding: '6px 12px 10px' } as React.CSSProperties,
+  label: { fontSize: 11, color: '#6b7280', marginBottom: 4, display: 'block' } as React.CSSProperties,
+  input: {
+    width: '100%', background: '#12141a', border: '1px solid #2a2d3a',
+    borderRadius: 6, color: '#e5e7eb', fontSize: 13, padding: '5px 8px',
+    outline: 'none', boxSizing: 'border-box',
+  } as React.CSSProperties,
+  row: { display: 'flex', gap: 6 } as React.CSSProperties,
+  divider: { height: 1, background: '#2a2d3a', margin: '2px 0' } as React.CSSProperties,
+  iconBtn: (active: boolean) => ({
+    flex: 1, padding: '5px 0', background: active ? '#2d3a5c' : '#12141a',
+    border: `1px solid ${active ? '#4b6bfb' : '#2a2d3a'}`, borderRadius: 6,
+    color: active ? '#fff' : '#9ca3af', cursor: 'pointer', fontSize: 13,
+    textAlign: 'center',
+  } as React.CSSProperties),
+  deleteBtn: {
+    width: '100%', marginTop: 2, padding: '7px 0',
+    background: 'none', border: '1px solid #3f1f1f',
+    borderRadius: 6, color: '#f87171', cursor: 'pointer', fontSize: 12,
+  } as React.CSSProperties,
+  sectionTitle: { fontSize: 11, color: '#6b7280', padding: '6px 12px 4px', display: 'block' } as React.CSSProperties,
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      <span style={s.label}>{label}</span>
+      {children}
+    </div>
+  )
+}
+
+function ColorRow({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <span style={{ ...s.label, marginBottom: 0, flex: 1 }}>{label}</span>
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{
+          width: 24, height: 24, borderRadius: 5, background: value,
+          border: '2px solid #2a2d3a', cursor: 'pointer', flexShrink: 0,
+        }} />
+        <span style={{ fontSize: 12, color: '#9ca3af', fontFamily: 'monospace' }}>{value}</span>
+        <input type="color" value={value} onChange={e => onChange(e.target.value)}
+          style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }} />
       </div>
-    )
-  }
+    </div>
+  )
+}
 
-  // Helper — merges partial props update into the full element
+export default function PropertiesPanel({ element, onChange, onDelete, onSendBackward, onBringForward }: PropertiesPanelProps) {
+  if (!element) return null
+
   function updateProps(partial: Partial<TextElementProps & ImageElementProps & ShapeElementProps>) {
-    if (!element) return
-    const updated: CanvasElement = {
-      id: element.id,
-      type: element.type,
-      x: element.x,
-      y: element.y,
-      width: element.width,
-      height: element.height,
-      props: { ...element.props, ...partial } as CanvasElementProps
-    }
-    onChange(updated)
+    onChange({ ...element!, props: { ...element!.props, ...partial } as CanvasElementProps })
   }
 
-  const props = element.props as TextElementProps & ImageElementProps & ShapeElementProps
+  const p = element.props as TextElementProps & ImageElementProps & ShapeElementProps
 
   return (
-    <div style={{
-      width: '220px',
-      borderLeft: '1px solid #ddd',
-      padding: '16px',
-      background: '#fafafa',
-      overflowY: 'auto',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '12px'
-    }}>
-      <strong style={{ fontSize: '13px', textTransform: 'uppercase', color: '#555' }}>
-        {element.type} properties
-      </strong>
+    <div style={{ color: '#e5e7eb' }}>
 
-      {/* ── Position and size (all types) ── */}
-      <fieldset style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '4px' }}>
-        <legend style={{ fontSize: '12px', color: '#777' }}>Position & Size</legend>
-        <label style={{ fontSize: '13px' }}>X
-          <input
-            type="number"
-            value={Math.round(element.x)}
-            onChange={e => onChange({ ...element, x: Number(e.target.value) })}
-            style={{ width: '100%', marginTop: '2px' }}
-          />
-        </label>
-        <label style={{ fontSize: '13px', marginTop: '6px', display: 'block' }}>Y
-          <input
-            type="number"
-            value={Math.round(element.y)}
-            onChange={e => onChange({ ...element, y: Number(e.target.value) })}
-            style={{ width: '100%', marginTop: '2px' }}
-          />
-        </label>
-        <label style={{ fontSize: '13px', marginTop: '6px', display: 'block' }}>Width
-          <input
-            type="number"
-            value={Math.round(element.width)}
-            onChange={e => onChange({ ...element, width: Number(e.target.value) })}
-            style={{ width: '100%', marginTop: '2px' }}
-          />
-        </label>
-        <label style={{ fontSize: '13px', marginTop: '6px', display: 'block' }}>Height
-          <input
-            type="number"
-            value={Math.round(element.height)}
-            onChange={e => onChange({ ...element, height: Number(e.target.value) })}
-            style={{ width: '100%', marginTop: '2px' }}
-          />
-        </label>
-      </fieldset>
+      {/* Position & Size */}
+      <span style={s.sectionTitle}>Position & Size</span>
+      <div style={s.section}>
+        <div style={s.row}>
+          <Field label="X">
+            <input style={s.input} type="number" value={Math.round(element.x)}
+              onChange={e => onChange({ ...element, x: +e.target.value })} />
+          </Field>
+          <Field label="Y">
+            <input style={s.input} type="number" value={Math.round(element.y)}
+              onChange={e => onChange({ ...element, y: +e.target.value })} />
+          </Field>
+        </div>
+        <div style={s.row}>
+          <Field label="W">
+            <input style={s.input} type="number" value={Math.round(element.width)}
+              onChange={e => onChange({ ...element, width: +e.target.value })} />
+          </Field>
+          <Field label="H">
+            <input style={s.input} type="number" value={Math.round(element.height)}
+              onChange={e => onChange({ ...element, height: +e.target.value })} />
+          </Field>
+        </div>
+      </div>
 
-      {/* ── Text properties ── */}
+      <div style={s.divider} />
+
+      {/* Text */}
       {element.type === 'text' && (
-        <fieldset style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '4px' }}>
-          <legend style={{ fontSize: '12px', color: '#777' }}>Text</legend>
-
-          <label style={{ fontSize: '13px', display: 'block' }}>Content
-            <textarea
-              value={props.text}
-              onChange={e => updateProps({ text: e.target.value })}
-              rows={4}
-              style={{ width: '100%', marginTop: '2px', resize: 'vertical' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Font size
-            <input
-              type="number"
-              value={props.fontSize}
-              min={8}
-              max={120}
-              onChange={e => updateProps({ fontSize: Number(e.target.value) })}
-              style={{ width: '100%', marginTop: '2px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Color
-            <input
-              type="color"
-              value={props.color}
-              onChange={e => updateProps({ color: e.target.value })}
-              style={{ width: '100%', marginTop: '2px', height: '32px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Style
-            <select
-              value={props.fontStyle || 'normal'}
-              onChange={e => updateProps({ fontStyle: e.target.value as TextElementProps['fontStyle'] })}
-              style={{ width: '100%', marginTop: '2px' }}
-            >
-              <option value="normal">Normal</option>
-              <option value="bold">Bold</option>
-              <option value="italic">Italic</option>
-            </select>
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Align
-            <select
-              value={props.align || 'left'}
-              onChange={e => updateProps({ align: e.target.value as TextElementProps['align'] })}
-              style={{ width: '100%', marginTop: '2px' }}
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </label>
-        </fieldset>
+        <>
+          <span style={s.sectionTitle}>Text</span>
+          <div style={s.section}>
+            <Field label="Content">
+              <textarea value={p.text} onChange={e => updateProps({ text: e.target.value })}
+                rows={3} style={{ ...s.input, resize: 'vertical' }} />
+            </Field>
+            <Field label="Font size">
+              <input style={s.input} type="number" value={p.fontSize} min={8} max={120}
+                onChange={e => updateProps({ fontSize: +e.target.value })} />
+            </Field>
+            <ColorRow label="Color" value={p.color} onChange={c => updateProps({ color: c })} />
+            <Field label="Style">
+              <div style={s.row}>
+                {(['normal', 'bold', 'italic'] as const).map(v => (
+                  <button key={v} style={s.iconBtn(p.fontStyle === v || (!p.fontStyle && v === 'normal'))}
+                    onClick={() => updateProps({ fontStyle: v })}>
+                    {v === 'normal' ? 'Aa' : v === 'bold' ? 'B' : 'I'}
+                  </button>
+                ))}
+              </div>
+            </Field>
+            <Field label="Align">
+              <div style={s.row}>
+                {(['left', 'center', 'right'] as const).map(v => (
+                  <button key={v} style={s.iconBtn(p.align === v || (!p.align && v === 'left'))}
+                    onClick={() => updateProps({ align: v })}>
+                    {v === 'left' ? '⬛▬▬' : v === 'center' ? '▬⬛▬' : '▬▬⬛'}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </div>
+        </>
       )}
 
-      {/* ── Image properties ── */}
+      {/* Image */}
       {element.type === 'image' && (
-        <fieldset style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '4px' }}>
-          <legend style={{ fontSize: '12px', color: '#777' }}>Image</legend>
-
-          <label style={{ fontSize: '13px', display: 'block' }}>Alt text
-            <input
-              type="text"
-              value={props.alt}
-              onChange={e => updateProps({ alt: e.target.value })}
-              style={{ width: '100%', marginTop: '2px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Image URL
-            <input
-              type="text"
-              value={props.url}
-              onChange={e => updateProps({ url: e.target.value })}
-              style={{ width: '100%', marginTop: '2px' }}
-            />
-          </label>
-        </fieldset>
+        <>
+          <span style={s.sectionTitle}>Image</span>
+          <div style={s.section}>
+            <Field label="Alt text">
+              <input style={s.input} type="text" value={p.alt}
+                onChange={e => updateProps({ alt: e.target.value })} />
+            </Field>
+            <Field label="URL">
+              <input style={s.input} type="text" value={p.url}
+                onChange={e => updateProps({ url: e.target.value })} />
+            </Field>
+          </div>
+        </>
       )}
 
-      {/* ── Shape properties ── */}
+      {/* Shape */}
       {element.type === 'shape' && (
-        <fieldset style={{ border: '1px solid #ddd', padding: '8px', borderRadius: '4px' }}>
-          <legend style={{ fontSize: '12px', color: '#777' }}>Shape</legend>
-
-          <label style={{ fontSize: '13px', display: 'block' }}>Fill color
-            <input
-              type="color"
-              value={props.fill}
-              onChange={e => updateProps({ fill: e.target.value })}
-              style={{ width: '100%', marginTop: '2px', height: '32px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Stroke color
-            <input
-              type="color"
-              value={props.stroke}
-              onChange={e => updateProps({ stroke: e.target.value })}
-              style={{ width: '100%', marginTop: '2px', height: '32px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Stroke width
-            <input
-              type="number"
-              value={props.strokeWidth}
-              min={0}
-              max={20}
-              onChange={e => updateProps({ strokeWidth: Number(e.target.value) })}
-              style={{ width: '100%', marginTop: '2px' }}
-            />
-          </label>
-
-          <label style={{ fontSize: '13px', display: 'block', marginTop: '6px' }}>Shape type
-            <select
-              value={props.shape}
-              onChange={e => updateProps({ shape: e.target.value as ShapeElementProps['shape'] })}
-              style={{ width: '100%', marginTop: '2px' }}
-            >
-              <option value="rect">Rectangle</option>
-              <option value="ellipse">Ellipse</option>
-            </select>
-          </label>
-        </fieldset>
+        <>
+          <span style={s.sectionTitle}>Shape</span>
+          <div style={s.section}>
+            <ColorRow label="Fill" value={p.fill} onChange={c => updateProps({ fill: c })} />
+            <ColorRow label="Stroke" value={p.stroke} onChange={c => updateProps({ stroke: c })} />
+            <Field label="Stroke width">
+              <input style={s.input} type="number" value={p.strokeWidth} min={0} max={20}
+                onChange={e => updateProps({ strokeWidth: +e.target.value })} />
+            </Field>
+            <Field label="Type">
+              <div style={s.row}>
+                {(['rect', 'ellipse'] as const).map(v => (
+                  <button key={v} style={s.iconBtn(p.shape === v)}
+                    onClick={() => updateProps({ shape: v })}>
+                    {v === 'rect' ? '▭' : '⬭'}
+                  </button>
+                ))}
+              </div>
+            </Field>
+          </div>
+        </>
       )}
+      <div style={s.divider} />
 
-      {/* ── Delete ── */}
-      <button
-        onClick={() => onDelete(element.id)}
-        style={{ marginTop: 'auto', color: 'red', background: 'none', border: '1px solid red', padding: '6px', borderRadius: '4px', cursor: 'pointer' }}
-      >
-        Delete element
-      </button>
+        <div style={{ padding: '8px 12px', display: 'flex', gap: 6 }}>
+          <button style={{ ...s.iconBtn(false), flex: 1 }} onClick={onSendBackward}>↓ Back</button>
+          <button style={{ ...s.iconBtn(false), flex: 1 }} onClick={onBringForward}>↑ Front</button>
+        </div>
+
+      <div style={s.divider} />
+      <div style={{ padding: '8px 12px' }}>
+        <button style={s.deleteBtn} onClick={() => onDelete(element.id)}>Delete</button>
+      </div>
     </div>
   )
 }

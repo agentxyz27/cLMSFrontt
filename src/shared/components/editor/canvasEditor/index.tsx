@@ -12,8 +12,10 @@ import EditorTimeline from './components/editorTimeline'
 import NodeSettingsPopover from './components/nodeSettingsPopover'
 import FloatingElementPanel from './components/floatingElementPanel'
 
+import { useUndoHistory } from './hooks/useUndoHistory'
+
 import { EditorStage } from '../stages'
-import type { LessonGraph } from '@/shared/types'
+import type { LessonGraph, CanvasElement } from '@/shared/types'
 
 interface CanvasEditorProps {
   lessonId: number
@@ -35,7 +37,7 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
 
   const { contextMenu, contextMenuRef, openAt: openContextMenu, close: closeContextMenu } = useContextMenu()
 
-  const { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage } =
+  const { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage, sendBackward, bringForward } =
     useCanvasElements({ activeNodeId, setLessonContent, setSelectedId })
 
   const { addNode, deleteNode, changeNodeType, setNextNode, setHintNode, updateQuiz, setQuestionId } =
@@ -43,20 +45,37 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
 
   const { saving, saveError, saveSuccess, save } = useSave(lessonId, token)
 
+  // after the useState block
+  const { push: pushUndo, undo, redo } = useUndoHistory(setLessonContent)
+
+  // wrap updateElement / addElement / deleteElement calls to snapshot first
+  function handleChange(updated: CanvasElement) {
+    pushUndo(lessonContent)
+    updateElement(updated)
+  }
+  function handleAdd(el: CanvasElement) {
+    pushUndo(lessonContent)
+    addElement(el)
+  }
+  function handleDelete(id: string) {
+    pushUndo(lessonContent)
+    deleteElement(id)
+  }
+
   useKeyboardShortcuts({
     selectedId,
-    onDeleteElement: deleteElement,
-    onEscape: () => {
-      closeContextMenu()
-      setSelectedId(null)
-    },
+    onDeleteElement: handleDelete,   // ← was deleteElement
+    onUndo: undo,                    // ← add this
+    onRedo: redo,
+    onEscape: () => { closeContextMenu(); setSelectedId(null) },
   })
 
-  function handleAddDragItem()   { addElement(makeDragItem()) }
-  function handleAddDragTarget() { addElement(makeDragTarget()) }
+
+  function handleAddDragItem()   { handleAdd(makeDragItem()) }
+  function handleAddDragTarget() { handleAdd(makeDragTarget()) }
   function handleAddMcOption() {
     const existingOptions = activeCanvas.elements.filter(el => el.type === 'mc-option')
-    addElement(makeMcOption(existingOptions.length))
+    handleAdd(makeMcOption(existingOptions.length))
   }
 
   function handleLinkTarget(targetId: string, acceptsItemId: string) {
@@ -125,6 +144,8 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
                   element={selectedElement}
                   onChange={updateElement}
                   onDelete={deleteElement}
+                  onBringForward={() => { bringForward(selectedElement.id) }}
+                  onSendBackward={() => { sendBackward(selectedElement.id) }}
                   onClose={() => setSelectedId(null)}
                 />
               )}
