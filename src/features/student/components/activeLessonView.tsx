@@ -2,8 +2,9 @@ import { useRef, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ViewerStage } from '@/shared/components/editor/stages'
 import { NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/canvasEditor/constants'
+import { BLANK_CANVAS } from '@/shared/components/editor/canvasEditor/constants'
 import DragMatch from './interactions/dragMatch'
-import type { LessonNode, LessonGraph } from '@/shared/types'
+import type { LessonNode, LessonGraph, Question, CanvasData } from '@/shared/types'
 
 interface Props {
   title: string
@@ -11,6 +12,7 @@ interface Props {
   currentNode: LessonNode
   currentNodeId: string
   classroomId: string
+  currentQuestion: Question | null  // ← added
 
   isInteractiveNode: boolean
   currentQuestionId: number | null
@@ -33,8 +35,8 @@ interface Props {
   advanceAlways: () => void
 }
 
-function detectInteractionType(node: LessonNode): 'drag-match' | 'mc' | 'none' {
-  const els = node.content.elements
+function detectInteractionType(question: Question | null): 'drag-match' | 'mc' | 'none' {
+  const els = question?.contentJson?.canvas?.elements ?? []
   if (els.some(el => el.type === 'drag-item' || el.type === 'drag-target')) return 'drag-match'
   if (els.some(el => el.type === 'mc-option')) return 'mc'
   return 'none'
@@ -42,6 +44,7 @@ function detectInteractionType(node: LessonNode): 'drag-match' | 'mc' | 'none' {
 
 export default function ActiveLessonView({
   title, graph, currentNode, currentNodeId, classroomId,
+  currentQuestion,
   isInteractiveNode, currentQuestionId, questionIndex, nodeQuestionCount,
   nodeCorrectCount, nodeRetries,
   feedback, hintsUsed, attempts, questionFinished, attemptLoading, attemptError,
@@ -60,7 +63,8 @@ export default function ActiveLessonView({
 
   useEffect(() => { setSelectedChoice(null) }, [currentQuestionId])
 
-  const interactionType = isInteractiveNode ? detectInteractionType(currentNode) : 'none'
+  const interactionType = isInteractiveNode ? detectInteractionType(currentQuestion) : 'none'
+  const questionCanvas: CanvasData = currentQuestion?.contentJson?.canvas ?? BLANK_CANVAS
   const isLastQuestion = questionIndex === nodeQuestionCount - 1
   const nextQuestionLabel = isLastQuestion
     ? 'Finish Stage →'
@@ -111,10 +115,10 @@ export default function ActiveLessonView({
       {isInteractiveNode && interactionType === 'drag-match' && (
         <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden', marginBottom: 24 }}>
           <DragMatch
-            canvasData={currentNode.content}
+            canvasData={questionCanvas}
             scale={scale}
             disabled={questionFinished || attemptLoading}
-            hints={[]}
+            hints={currentQuestion?.contentJson?.hints ?? []}
             onSubmit={(answer) => submitAnswer(answer)}
             onHint={hintIndex => useHint(hintIndex)}
           />
@@ -136,7 +140,7 @@ export default function ActiveLessonView({
           {questionFinished && (
             <div style={{ marginTop: 12 }}>
               {feedback === 'correct'
-                ? <p style={{ color: '#22c55e', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>✅ Correct!</p>
+                ? <p style={{ color: '#22c55e', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>✅ Correcttt!</p>
                 : <p style={{ color: '#6b7280', fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Skipped — keep going!</p>
               }
               <button
@@ -153,10 +157,10 @@ export default function ActiveLessonView({
       {/* ── MULTIPLE CHOICE ── */}
       {isInteractiveNode && interactionType === 'mc' && (
         <div ref={containerRef} style={{ width: '100%', marginBottom: 24 }}>
-          <ViewerStage canvasData={currentNode.content} scale={scale} />
+          <ViewerStage canvasData={questionCanvas} scale={scale} />
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-            {currentNode.content.elements
+            {questionCanvas.elements
               .filter(el => el.type === 'mc-option')
               .sort((a, b) => (a.props as any).index - (b.props as any).index)
               .map(el => {

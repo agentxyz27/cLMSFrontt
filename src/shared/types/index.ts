@@ -538,8 +538,10 @@ export interface QuestionSummary {
  * QuestionContent — full interaction config stored in Question.contentJson.
  * This is what InteractionDefinition hydrates from at runtime.
  * Includes: prompt, answer key, hints, interaction-specific fields.
+ * QuestionContent.canvas added — visual layer per question, authored in canvas editor
  */
 export interface QuestionContent {
+  canvas?: CanvasData        // visual layer for this question — authored in canvas editor
   prompt: string
   hints?: string[]
   // DRAG_MATCH

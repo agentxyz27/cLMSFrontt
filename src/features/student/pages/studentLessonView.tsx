@@ -8,6 +8,9 @@ import LessonReviewMode from '../components/lessonReviewMode'
 import LessonCompleteScreen from '../components/lessonCompleteScreen'
 import ActiveLessonView from '../components/activeLessonView'
 
+import { useMemo } from 'react'
+
+
 export default function StudentLessonView() {
   const { token } = useAuth()
   const { id, lessonId } = useParams()
@@ -15,7 +18,11 @@ export default function StudentLessonView() {
   const { data: lesson, loading: lessonLoading, error: lessonError } = useLesson(lessonId, token)
   const { data: progressList, loading: progressLoading, error: progressError } = useProgress(token)
 
-  const graph = lesson?.contentJson ? normalizeLessonGraph(lesson.contentJson) : null
+  const graph = useMemo(
+  () => lesson?.contentJson ? normalizeLessonGraph(lesson.contentJson) : null,
+  [lesson?.contentJson]
+)
+
   const runner = useLessonRunner(graph, lessonId, token)
 
   if (lessonLoading || progressLoading) return <div>Loading...</div>
@@ -56,21 +63,19 @@ export default function StudentLessonView() {
       currentNode={runner.currentNode}
       currentNodeId={runner.currentNodeId!}
       classroomId={id!}
-
+      currentQuestion={runner.currentQuestion}
       isInteractiveNode={runner.isInteractiveNode}
       currentQuestionId={runner.currentQuestionId}
       questionIndex={runner.questionIndex}
       nodeQuestionCount={runner.nodeQuestionCount}
       nodeCorrectCount={runner.nodeCorrectCount}
       nodeRetries={runner.nodeRetries}
-
       feedback={runner.feedback}
       hintsUsed={runner.hintsUsed}
       attempts={runner.attempts}
       questionFinished={runner.questionFinished}
       attemptLoading={runner.attemptLoading}
       attemptError={runner.attemptError}
-
       submitAnswer={runner.submitAnswer}
       useHint={runner.useHint}
       giveUp={runner.giveUp}

@@ -19,6 +19,7 @@ interface NodeSettingsPopoverProps {
   onChangeType: (type: LessonNodeType) => void
   onSetTransition: (condition: TransitionCondition, targetNodeId: string | null) => void
   onAddQuestionId: (nodeId: string, questionId: number) => void
+  onSelectQuestion: (questionId: number) => void  // ← add this
   onRemoveQuestionId: (nodeId: string, questionId: number) => void
   onDelete: () => void
   onClose: () => void
@@ -62,7 +63,7 @@ const NodeSettingsPopover = React.forwardRef<HTMLDivElement, NodeSettingsPopover
     const {
       x, y, node, allNodes, canDelete,
       lessonId, token,
-      onChangeType, onSetTransition, onAddQuestionId, onRemoveQuestionId,
+      onChangeType, onSetTransition, onAddQuestionId, onSelectQuestion, onRemoveQuestionId,
       onDelete, onClose,
     } = props
 
@@ -237,14 +238,19 @@ const NodeSettingsPopover = React.forwardRef<HTMLDivElement, NodeSettingsPopover
                 QUESTIONS ({(node.questionIds ?? []).length})
               </div>
 
-              {(node.questionIds ?? []).map(qid => (
+              {(node.questionIds ?? []).map((qid, i) => (
                 <div key={qid} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                   padding: '6px 10px', borderRadius: 6, marginBottom: 4,
                   background: '#052e16', border: '1px solid #14532d',
-                  fontSize: 11, color: '#86efac',
+                  fontSize: 11,
                 }}>
-                  <span>✓ Question #{qid}</span>
+                  <button
+                    onClick={() => { onSelectQuestion(qid); onClose() }}
+                    style={{ background: 'none', border: 'none', color: '#86efac', cursor: 'pointer', fontSize: 11, padding: 0 }}
+                  >
+                    ✏️ Q{i + 1} · #{qid}
+                  </button>
                   <button
                     onClick={() => onRemoveQuestionId(node.id, qid)}
                     style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 13, padding: 0 }}

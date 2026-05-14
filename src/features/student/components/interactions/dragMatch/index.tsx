@@ -149,6 +149,7 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
           💡 {hints[hintIndex]}
         </div>
       )}
+      
 
       {!disabled && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
