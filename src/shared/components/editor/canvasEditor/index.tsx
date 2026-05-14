@@ -55,7 +55,7 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
 
   // ── Hooks ────────────────────────────────────────────────────────────────
 
-  const { contextMenu, contextMenuRef, openAt: openContextMenu, close: closeContextMenu } = useContextMenu()
+  const { contextMenu, contextMenuRef, modalRef, openAt: openContextMenu, close: closeContextMenu } = useContextMenu()
 
   const { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage, sendBackward, bringForward } =
     useCanvasElements({ activeNodeId, setLessonContent, setSelectedId })
@@ -134,7 +134,7 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
     try {
       const question = await questionApi.getById(questionId, token)
       await questionApi.update(questionId, {
-        contentJson: { ...question.contentJson, canvas } as Record<string, unknown>
+        contentJson: { ...question.contentJson, canvas }
       }, token)
     } catch (err) {
       console.error('Failed to save question canvas', err)
@@ -157,13 +157,11 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
     if (!token) return
     try {
       const question = await questionApi.getById(questionId, token)
+      // canvas is already CanvasData — no double nesting
       const canvas = question.contentJson.canvas
       setQuestionCanvases(prev => ({
         ...prev,
-        [questionId]: {
-          canvas: canvas?.canvas ?? { width: 1280, height: 720, background: '#0f1117' },
-          elements: canvas?.elements ?? []
-        }
+        [questionId]: canvas ?? { canvas: { width: 1280, height: 720, background: '#0f1117' }, elements: [] }
       }))
     } catch (err) {
       console.error('Failed to load question canvas', err)
@@ -326,6 +324,7 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
           {contextMenu && contextNode && (
             <NodeSettingsPopover
               ref={contextMenuRef}
+              modalRef={modalRef}
               x={contextMenu.x}
               y={contextMenu.y}
               node={contextNode}

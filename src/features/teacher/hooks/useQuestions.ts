@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react'
 import { questionApi } from '@/shared/api/questionApi'
-import type { Question, ReorderPayload } from '@/shared/types'
+import type { Question, QuestionContent, ReorderPayload } from '@/shared/types'
 
 export function useQuestions(lessonId: number | undefined, token: string | null) {
   const [data, setData]       = useState<Question[]>([])
@@ -26,7 +26,7 @@ export function useQuestions(lessonId: number | undefined, token: string | null)
     lessonId: number
     topicId: number
     templateType: string
-    contentJson: Record<string, unknown>
+    contentJson: QuestionContent
     order?: number
   }) => {
     if (!token) return
@@ -38,7 +38,7 @@ export function useQuestions(lessonId: number | undefined, token: string | null)
   const update = useCallback(async (id: number, payload: {
     templateType?: string
     topicId?: number
-    contentJson?: Record<string, unknown>
+    contentJson?: QuestionContent
     order?: number
   }) => {
     if (!token) return

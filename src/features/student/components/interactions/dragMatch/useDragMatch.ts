@@ -1,25 +1,27 @@
 import { useState } from 'react'
-import type { CanvasElement } from '@/shared/types'
+import type { DragMatchContent } from '@/shared/types'
 
 type MatchState = Record<string, string | null>
 
 interface UseDragMatchProps {
-  targets: CanvasElement[]
+  content: DragMatchContent
   hints: string[]
   disabled: boolean
   onSubmit: (answer: unknown) => void
   onHint: (hintIndex: number) => void
 }
 
-export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: UseDragMatchProps) {
+export function useDragMatch({ content, hints, disabled, onSubmit, onHint }: UseDragMatchProps) {
+  const { items, targets } = content
+
   const [matches, setMatches] = useState<MatchState>(() =>
     Object.fromEntries(targets.map(t => [t.id, null]))
   )
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [hintIndex, setHintIndex] = useState<number | null>(null)
+  const [hintIndex, setHintIndex]   = useState<number | null>(null)
 
   const placedItemIds = new Set(Object.values(matches).filter(Boolean) as string[])
-  const allFilled = targets.every(t => matches[t.id] !== null)
+  const allFilled     = targets.every(t => matches[t.id] !== null)
 
   function handleDragStart(itemId: string) {
     if (disabled) return
@@ -30,6 +32,7 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
     if (disabled || !draggingId) return
     setMatches(prev => {
       const next = { ...prev }
+      // unplace item if it was already somewhere
       for (const tid of Object.keys(next)) {
         if (next[tid] === draggingId) next[tid] = null
       }
@@ -49,8 +52,11 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
   }
 
   function handleSubmit() {
-    if (disabled) return
-    const answer = Object.fromEntries(targets.map(t => [t.id, matches[t.id]]))
+    if (disabled || !allFilled) return
+    // semantic answer — { [target.id]: item.id }
+    const answer = Object.fromEntries(
+      targets.map(t => [t.id, matches[t.id]])
+    )
     onSubmit(answer)
   }
 
@@ -62,8 +68,18 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
   }
 
   return {
-    matches, draggingId, hintIndex,
-    placedItemIds, allFilled,
-    handleDragStart, handleDrop, handleDragOver, handleUnplace, handleSubmit, handleShowHint,
+    items,
+    targets,
+    matches,
+    draggingId,
+    hintIndex,
+    placedItemIds,
+    allFilled,
+    handleDragStart,
+    handleDrop,
+    handleDragOver,
+    handleUnplace,
+    handleSubmit,
+    handleShowHint,
   }
 }

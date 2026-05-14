@@ -9,12 +9,14 @@ export interface ContextMenuState {
 export function useContextMenu() {
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
+  const modalRef = useRef<HTMLDivElement>(null)
 
-  // Close on click outside
   useEffect(() => {
     if (!contextMenu) return
     function handleMouseDown(e: MouseEvent) {
-      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+      const inPopover = contextMenuRef.current?.contains(e.target as Node)
+      const inModal   = modalRef.current?.contains(e.target as Node)
+      if (!inPopover && !inModal) {
         setContextMenu(null)
       }
     }
@@ -32,5 +34,5 @@ export function useContextMenu() {
     setContextMenu(null)
   }
 
-  return { contextMenu, contextMenuRef, openAt, close }
+  return { contextMenu, contextMenuRef, modalRef, openAt, close }
 }

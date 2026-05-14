@@ -1,5 +1,5 @@
 import { api } from './api'
-import type { Question, ReorderPayload } from '../types'
+import type { Question, QuestionContent, ReorderPayload } from '../types'
 
 export const questionApi = {
   // Get all questions for a lesson — ordered by sequence
@@ -16,7 +16,7 @@ export const questionApi = {
       lessonId: number
       topicId: number
       templateType: string
-      contentJson: Record<string, unknown>
+      contentJson: QuestionContent
     },
     token: string
   ) => api.post<{ message: string; question: Question }>('/questions', data, token),
@@ -27,7 +27,7 @@ export const questionApi = {
     data: {
       templateType?: string
       topicId?: number
-      contentJson?: Record<string, unknown>
+      contentJson?: QuestionContent
     },
     token: string
   ) => api.patch<{ message: string; question: Question }>(`/questions/${id}`, data, token),

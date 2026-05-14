@@ -1,10 +1,13 @@
-import { useRef, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ViewerStage } from '@/shared/components/editor/stages'
 import { NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/canvasEditor/constants'
 import { BLANK_CANVAS } from '@/shared/components/editor/canvasEditor/constants'
 import DragMatch from './interactions/dragMatch'
-import type { LessonNode, LessonGraph, Question, CanvasData } from '@/shared/types'
+import type {
+  LessonNode, LessonGraph, Question, CanvasData,
+  DragMatchContent, MultipleChoiceContent, McOptionProps,
+} from '@/shared/types'
 
 interface Props {
   title: string
@@ -12,7 +15,7 @@ interface Props {
   currentNode: LessonNode
   currentNodeId: string
   classroomId: string
-  currentQuestion: Question | null  // ← added
+  currentQuestion: Question | null
 
   isInteractiveNode: boolean
   currentQuestionId: number | null
@@ -36,10 +39,23 @@ interface Props {
 }
 
 function detectInteractionType(question: Question | null): 'drag-match' | 'mc' | 'none' {
-  const els = question?.contentJson?.canvas?.elements ?? []
-  if (els.some(el => el.type === 'drag-item' || el.type === 'drag-target')) return 'drag-match'
-  if (els.some(el => el.type === 'mc-option')) return 'mc'
+  if (!question) return 'none'
+  if (question.templateType === 'DRAG_MATCH')      return 'drag-match'
+  if (question.templateType === 'MULTIPLE_CHOICE') return 'mc'
   return 'none'
+}
+
+function useViewportScale(cw: number, ch: number) {
+  const [scale, setScale] = useState(1)
+  useEffect(() => {
+    function recalc() {
+      setScale(Math.min(window.innerWidth / cw, window.innerHeight / ch))
+    }
+    recalc()
+    window.addEventListener('resize', recalc)
+    return () => window.removeEventListener('resize', recalc)
+  }, [cw, ch])
+  return scale
 }
 
 export default function ActiveLessonView({
@@ -52,191 +68,259 @@ export default function ActiveLessonView({
   advanceQuestion, advanceAlways,
 }: Props) {
   const navigate = useNavigate()
-  const containerRef = useRef<HTMLDivElement>(null)
-  const [scale, setScale] = useState(1)
-  const [selectedChoice, setSelectedChoice] = useState<number | null>(null)
+  const [selectedChoiceId, setSelectedChoiceId] = useState<string | null>(null)
+  useEffect(() => { setSelectedChoiceId(null) }, [currentQuestionId])
 
-  useEffect(() => {
-    if (!containerRef.current) return
-    setScale(Math.min(1, containerRef.current.offsetWidth / 1280))
-  }, [currentNodeId, questionIndex])
+  const interactionType = detectInteractionType(currentQuestion)
 
-  useEffect(() => { setSelectedChoice(null) }, [currentQuestionId])
+  // Node canvas is always the visual base — teacher-authored slide
+  const nodeCanvas: CanvasData = currentNode.content ?? BLANK_CANVAS
 
-  const interactionType = isInteractiveNode ? detectInteractionType(currentQuestion) : 'none'
-  const questionCanvas: CanvasData = currentQuestion?.contentJson?.canvas ?? BLANK_CANVAS
+  // Question canvas is used only for interaction element positioning (drag-items, targets, mc-options)
+  const questionCanvas: CanvasData =
+    (currentQuestion?.contentJson as DragMatchContent | MultipleChoiceContent)?.canvas ?? BLANK_CANVAS
+
+  const { width: CW, height: CH } = nodeCanvas.canvas
+  const scale = useViewportScale(CW, CH)
+
+  const dragMatchContent: DragMatchContent | null =
+    interactionType === 'drag-match' && currentQuestion
+      ? (currentQuestion.contentJson as DragMatchContent)
+      : null
+
+  const mcContent: MultipleChoiceContent | null =
+    interactionType === 'mc' && currentQuestion
+      ? (currentQuestion.contentJson as MultipleChoiceContent)
+      : null
+
   const isLastQuestion = questionIndex === nodeQuestionCount - 1
-  const nextQuestionLabel = isLastQuestion
+  const nextLabel = isLastQuestion
     ? 'Finish Stage →'
-    : `Next Question → (${questionIndex + 1}/${nodeQuestionCount})`
+    : `Next → (${questionIndex + 1}/${nodeQuestionCount})`
+
+  const pill: React.CSSProperties = {
+    background: 'rgba(0,0,0,0.50)',
+    backdropFilter: 'blur(6px)',
+    borderRadius: 8,
+    padding: '6px 12px',
+    color: '#f3f4f6',
+    fontSize: 12,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  }
 
   return (
-    <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px' }}>
+    <div style={{ position: 'fixed', inset: 0, background: '#111', overflow: 'hidden' }}>
 
+      {/* ── Canvas layer ── */}
+      <div style={{
+        position: 'absolute',
+        top: '50%', left: '50%',
+        transform: `translate(-50%, -50%) scale(${scale})`,
+        transformOrigin: 'center center',
+        width: CW, height: CH,
+      }}>
+
+        {/* DRAG MATCH — node canvas as visual base, question canvas for element positions */}
+        {isInteractiveNode && interactionType === 'drag-match' && dragMatchContent && (
+          <div style={{ position: 'relative', width: CW, height: CH }}>
+            <ViewerStage canvasData={nodeCanvas} scale={1} />
+            <div style={{ position: 'absolute', inset: 0 }}>
+              <DragMatch
+                content={dragMatchContent}
+                canvasData={questionCanvas}
+                scale={1}
+                disabled={questionFinished || attemptLoading}
+                onSubmit={submitAnswer}
+                onHint={useHint}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* MULTIPLE CHOICE — node canvas as visual base, question canvas for mc-option positions */}
+        {isInteractiveNode && interactionType === 'mc' && mcContent && (
+          <div style={{ position: 'relative', width: CW, height: CH }}>
+            <ViewerStage canvasData={nodeCanvas} scale={1} />
+
+            {questionCanvas.elements
+              .filter(el => el.type === 'mc-option')
+              .map(el => {
+                const p = el.props as McOptionProps
+                const choice = mcContent.choices[p.index]
+                if (!choice) return null
+                const isSelected = selectedChoiceId === choice.id
+                const isCorrect  = questionFinished && choice.id === mcContent.correctId
+                const isWrong    = questionFinished && isSelected && choice.id !== mcContent.correctId
+                return (
+                  <div
+                    key={el.id}
+                    onClick={() => { if (!questionFinished && !attemptLoading) setSelectedChoiceId(choice.id) }}
+                    style={{
+                      position: 'absolute',
+                      left: el.x, top: el.y,
+                      width: el.width, height: el.height,
+                      borderRadius: 8, boxSizing: 'border-box',
+                      cursor: questionFinished ? 'default' : 'pointer',
+                      border: isCorrect  ? '3px solid #22c55e'
+                            : isWrong    ? '3px solid #ef4444'
+                            : isSelected ? '3px solid #3b82f6'
+                            : '2px solid transparent',
+                      background: isCorrect  ? '#dcfce755'
+                                : isWrong    ? '#fee2e255'
+                                : isSelected ? '#eff6ff55'
+                                : 'transparent',
+                      transition: 'border 0.15s, background 0.15s',
+                    }}
+                  />
+                )
+              })}
+          </div>
+        )}
+
+        {/* HOOK / TEACH / REWARD */}
+        {!isInteractiveNode && (
+          <ViewerStage canvasData={nodeCanvas} scale={1} />
+        )}
+
+        {/* No questions attached */}
+        {isInteractiveNode && interactionType === 'none' && (
+          <div style={{
+            width: CW, height: CH,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#6b7280', fontSize: 20,
+          }}>
+            No questions attached to this node yet.
+          </div>
+        )}
+      </div>
+
+      {/* ── UI overlay ── */}
+
+      {/* Back */}
       <button
         onClick={() => navigate(`/student/classrooms/${classroomId}`)}
-        style={{ marginBottom: 8, background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, color: '#6b7280' }}
+        style={{
+          position: 'fixed', top: 14, left: 16, zIndex: 20,
+          ...pill, cursor: 'pointer', border: 'none',
+        }}
       >
         ← Back
       </button>
 
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 12 }}>{title}</h1>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <div style={{ width: 10, height: 10, borderRadius: '50%', background: NODE_TYPE_COLOR[currentNode.type] }} />
-        <span style={{ fontSize: 13, color: '#555' }}>{NODE_TYPE_LABEL[currentNode.type]}</span>
-
+      {/* Node type + progress */}
+      <div style={{ position: 'fixed', top: 14, right: 16, zIndex: 20, ...pill }}>
+        <div style={{ width: 8, height: 8, borderRadius: '50%', background: NODE_TYPE_COLOR[currentNode.type], flexShrink: 0 }} />
+        <span>{NODE_TYPE_LABEL[currentNode.type]}</span>
         {isInteractiveNode && nodeQuestionCount > 0 && (
-          <span style={{ fontSize: 12, color: '#6b7280', marginLeft: 8 }}>
-            Question {questionIndex + 1} of {nodeQuestionCount}
-          </span>
+          <span style={{ color: '#9ca3af' }}>{questionIndex + 1}/{nodeQuestionCount}</span>
         )}
-
         {isInteractiveNode && nodeRetries > 0 && (
-          <span style={{ fontSize: 11, color: '#f59e0b', marginLeft: 8 }}>
-            Retry {nodeRetries}
-          </span>
+          <span style={{ color: '#f59e0b' }}>retry {nodeRetries}</span>
         )}
-
         {isInteractiveNode && questionIndex > 0 && (
-          <span style={{ fontSize: 11, color: '#9ca3af', marginLeft: 'auto' }}>
-            {nodeCorrectCount}/{questionIndex} correct
-          </span>
+          <span style={{ color: '#9ca3af' }}>{nodeCorrectCount}/{questionIndex} ✓</span>
         )}
       </div>
 
+      {/* Error */}
       {attemptError && (
-        <div style={{ padding: '8px 12px', background: '#fee2e2', borderRadius: 6, fontSize: 12, color: '#dc2626', marginBottom: 12 }}>
+        <div style={{
+          position: 'fixed', top: 56, left: '50%', transform: 'translateX(-50%)', zIndex: 20,
+          background: '#fee2e2', border: '1px solid #fca5a5',
+          borderRadius: 8, padding: '8px 20px', fontSize: 13, color: '#dc2626',
+        }}>
           {attemptError}
         </div>
       )}
 
-      {/* ── DRAG MATCH ── */}
-      {isInteractiveNode && interactionType === 'drag-match' && (
-        <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden', marginBottom: 24 }}>
-          <DragMatch
-            canvasData={questionCanvas}
-            scale={scale}
-            disabled={questionFinished || attemptLoading}
-            hints={currentQuestion?.contentJson?.hints ?? []}
-            onSubmit={(answer) => submitAnswer(answer)}
-            onHint={hintIndex => useHint(hintIndex)}
-          />
+      {/* ── Bottom action bar ── */}
+      <div style={{
+        position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 20,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10,
+      }}>
 
-          {!questionFinished && (
-            <button
-              onClick={giveUp}
-              disabled={attemptLoading}
-              style={{
-                marginTop: 8, padding: '6px 16px', fontSize: 12,
-                background: 'none', border: '1px solid #d1d5db',
-                borderRadius: 6, color: '#9ca3af', cursor: 'pointer',
-              }}
-            >
-              Give Up
-            </button>
-          )}
-
-          {questionFinished && (
-            <div style={{ marginTop: 12 }}>
-              {feedback === 'correct'
-                ? <p style={{ color: '#22c55e', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>✅ Correcttt!</p>
-                : <p style={{ color: '#6b7280', fontWeight: 600, fontSize: 14, marginBottom: 8 }}>Skipped — keep going!</p>
-              }
-              <button
-                onClick={advanceQuestion}
-                style={{ padding: '10px 28px', fontSize: 14, fontWeight: 600, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
-              >
-                {nextQuestionLabel}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── MULTIPLE CHOICE ── */}
-      {isInteractiveNode && interactionType === 'mc' && (
-        <div ref={containerRef} style={{ width: '100%', marginBottom: 24 }}>
-          <ViewerStage canvasData={questionCanvas} scale={scale} />
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
-            {questionCanvas.elements
-              .filter(el => el.type === 'mc-option')
-              .sort((a, b) => (a.props as any).index - (b.props as any).index)
-              .map(el => {
-                const p = el.props as any
-                const isSelected = selectedChoice === p.index
-                return (
-                  <button
-                    key={el.id}
-                    onClick={() => !questionFinished && setSelectedChoice(p.index)}
-                    style={{
-                      padding: '10px 20px', fontSize: 14, borderRadius: 8,
-                      border: isSelected ? '2px solid #3b82f6' : '1px solid #d1d5db',
-                      background: feedback === 'correct' && isSelected ? '#dcfce7'
-                        : feedback === 'wrong' && isSelected ? '#fee2e2'
-                        : isSelected ? '#eff6ff' : p.color,
-                      color: p.textColor,
-                      cursor: questionFinished ? 'default' : 'pointer',
-                      fontWeight: isSelected ? 600 : 400,
-                      minWidth: 120,
-                    }}
-                  >
-                    {p.label}
-                  </button>
-                )
-              })}
+        {feedback === 'correct' && (
+          <div style={{ ...pill, background: '#dcfce7', color: '#15803d', fontWeight: 700, fontSize: 15 }}>
+            ✅ Correct!
           </div>
+        )}
+        {feedback === 'wrong' && !questionFinished && (
+          <div style={{ ...pill, background: '#fee2e2', color: '#dc2626', fontWeight: 700, fontSize: 15 }}>
+            ❌ Wrong — try again!
+          </div>
+        )}
 
-          {feedback === 'correct' && <p style={{ color: '#22c55e', fontWeight: 'bold', marginTop: 8 }}>✅ Correct!</p>}
-          {feedback === 'wrong'   && <p style={{ color: '#ef4444', fontWeight: 'bold', marginTop: 8 }}>❌ Wrong. Try again!</p>}
-
-          {!feedback && !questionFinished && (
+        {/* MC actions */}
+        {isInteractiveNode && interactionType === 'mc' && !questionFinished && (
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
-              onClick={() => { if (selectedChoice !== null) submitAnswer(selectedChoice) }}
-              disabled={selectedChoice === null || attemptLoading}
+              onClick={() => { if (selectedChoiceId) submitAnswer(selectedChoiceId) }}
+              disabled={!selectedChoiceId || attemptLoading}
               style={{
-                marginTop: 12, padding: '8px 24px', fontSize: 14, borderRadius: 8,
-                background: selectedChoice !== null ? '#3b82f6' : '#e5e7eb',
-                color: selectedChoice !== null ? '#fff' : '#9ca3af',
-                border: 'none', cursor: selectedChoice !== null ? 'pointer' : 'not-allowed',
+                padding: '11px 30px', fontSize: 14, fontWeight: 600,
+                borderRadius: 9, border: 'none',
+                background: selectedChoiceId ? '#3b82f6' : '#374151',
+                color: selectedChoiceId ? '#fff' : '#6b7280',
+                cursor: selectedChoiceId ? 'pointer' : 'not-allowed',
+                transition: 'background 0.15s',
               }}
             >
               Submit Answer
             </button>
-          )}
-
-          {questionFinished && (
             <button
-              onClick={advanceQuestion}
-              style={{ marginTop: 12, padding: '10px 28px', fontSize: 14, fontWeight: 600, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+              onClick={giveUp}
+              disabled={attemptLoading}
+              style={{ padding: '11px 18px', fontSize: 12, ...pill, cursor: 'pointer', border: 'none' }}
             >
-              {nextQuestionLabel}
+              Give Up
             </button>
-          )}
-        </div>
-      )}
+          </div>
+        )}
 
-      {/* ── No questions attached ── */}
-      {isInteractiveNode && interactionType === 'none' && (
-        <div style={{ padding: '24px', textAlign: 'center', color: '#9ca3af', fontSize: 14 }}>
-          No questions attached to this node yet.
-        </div>
-      )}
+        {/* Drag-match give-up */}
+        {isInteractiveNode && interactionType === 'drag-match' && !questionFinished && (
+          <button
+            onClick={giveUp}
+            disabled={attemptLoading}
+            style={{ padding: '8px 20px', fontSize: 12, ...pill, cursor: 'pointer', border: 'none' }}
+          >
+            Give Up
+          </button>
+        )}
 
-      {/* ── Hook / Teach / Reward ── */}
-      {!isInteractiveNode && (
-        <div ref={containerRef} style={{ width: '100%', overflowX: 'hidden', marginBottom: 24 }}>
-          <ViewerStage canvasData={currentNode.content} scale={scale} />
+        {/* Advance after question finished */}
+        {questionFinished && isInteractiveNode && (
+          <button
+            onClick={advanceQuestion}
+            style={{
+              padding: '13px 40px', fontSize: 15, fontWeight: 700,
+              background: '#3b82f6', color: '#fff',
+              border: 'none', borderRadius: 10, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(59,130,246,0.45)',
+            }}
+          >
+            {nextLabel}
+          </button>
+        )}
+
+        {/* Non-interactive advance */}
+        {!isInteractiveNode && (
           <button
             onClick={advanceAlways}
-            style={{ marginTop: 16, padding: '10px 28px', fontSize: 14, fontWeight: 600, background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}
+            style={{
+              padding: '13px 40px', fontSize: 15, fontWeight: 700,
+              background: '#3b82f6', color: '#fff',
+              border: 'none', borderRadius: 10, cursor: 'pointer',
+              boxShadow: '0 4px 20px rgba(59,130,246,0.45)',
+            }}
           >
             {currentNode.transitions.length === 0 ? 'Finish Lesson' : 'Next →'}
           </button>
-        </div>
-      )}
-
+        )}
+      </div>
     </div>
   )
 }
