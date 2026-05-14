@@ -11,7 +11,7 @@ interface ToolStripProps {
   onAddElement: (element: CanvasElement) => void
   onBackgroundColorChange: (color: string) => void
   onBackgroundImageChange: (url: string) => void
-  isQuizNode: boolean
+  needsQuestion: boolean      // true for practice and mastery nodes
   onAddDragItem: () => void
   onAddDragTarget: () => void
   onAddMcOption: () => void
@@ -66,7 +66,6 @@ function Divider() {
   return <div style={{ width: 28, height: 1, background: '#2a2d3a', margin: '4px 0' }} />
 }
 
-
 // ── Component ──────────────────────────────────────────────────────────────
 
 export default function ToolStrip({
@@ -106,20 +105,21 @@ export default function ToolStrip({
       }}>
 
         <IconBtn title="Text styles" onClick={() => toggleTab('text')} accent="#3b82f6" active={activeTab === 'text'}>
-          <Type size={24}/>
+          <Type size={24} />
         </IconBtn>
 
         <IconBtn title="Images" onClick={() => toggleTab('images')} accent="#3b82f6" active={activeTab === 'images'}>
-          <Image size={24}/>
+          <Image size={24} />
         </IconBtn>
 
         <IconBtn title="Shapes" onClick={() => toggleTab('shape')} accent="#3b82f6" active={activeTab === 'shape'}>
-          <Square size={24}/>
+          <Square size={24} />
         </IconBtn>
 
         <IconBtn title="Elements library" onClick={() => toggleTab('elements')} accent="#f59e0b" active={activeTab === 'elements'}>
-          <Component size={24}/>
+          <Component size={24} />
         </IconBtn>
+
         <Divider />
 
         {/* Background color swatch */}

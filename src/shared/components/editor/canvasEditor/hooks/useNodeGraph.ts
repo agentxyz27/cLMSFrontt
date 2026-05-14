@@ -1,5 +1,10 @@
 import { useCallback } from 'react'
-import type { LessonGraph, LessonNode, LessonNodeType, QuizData } from '@/shared/types'
+import type {
+  LessonGraph,
+  LessonNode,
+  LessonNodeType,
+  TransitionCondition,
+} from '@/shared/types'
 import { makeBlankNode } from '../factories'
 
 interface UseNodeGraphOptions {
@@ -10,17 +15,25 @@ interface UseNodeGraphOptions {
 }
 
 export function useNodeGraph({
-  setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu
+  setLessonContent,
+  setActiveNodeId,
+  setSelectedId,
+  closeContextMenu,
 }: UseNodeGraphOptions) {
+
+  // ── Core updater ──────────────────────────────────────────────────────────
 
   const updateNode = useCallback(
     (nodeId: string, updater: (prev: LessonNode) => LessonNode) => {
       setLessonContent(prev => ({
         ...prev,
-        nodes: prev.nodes.map(n => n.id === nodeId ? updater(n) : n)
+        nodes: prev.nodes.map(n => n.id === nodeId ? updater(n) : n),
       }))
-    }, [setLessonContent]
+    },
+    [setLessonContent]
   )
+
+  // ── Node CRUD ─────────────────────────────────────────────────────────────
 
   const addNode = useCallback(() => {
     const newNode = makeBlankNode()
@@ -39,44 +52,71 @@ export function useNodeGraph({
       setActiveNodeId(remaining[Math.max(0, deletedIndex - 1)].id)
       setSelectedId(null)
       closeContextMenu()
-    }, [setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu]
+    },
+    [setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu]
   )
 
   const changeNodeType = useCallback(
     (nodeId: string, type: LessonNodeType) => {
-      updateNode(nodeId, prev => ({
-        ...prev, type,
-        quiz: type === 'quiz'
-          ? (prev.quiz ?? { question: '', choices: ['', '', '', ''], correctIndex: 0 })
-          : undefined
-      }))
-    }, [updateNode]
+      updateNode(nodeId, prev => ({ ...prev, type }))
+    },
+    [updateNode]
   )
 
-  const setNextNode = useCallback(
-    (nodeId: string, nextNodeId: string | null) => {
-      updateNode(nodeId, prev => ({ ...prev, nextNodeId }))
-    }, [updateNode]
+  // ── Transitions ───────────────────────────────────────────────────────────
+
+  /**
+   * Set or remove a transition for a given condition.
+   * - targetNodeId null  → removes that condition's transition
+   * - targetNodeId value → upserts that condition's transition
+   */
+  const setTransition = useCallback(
+    (nodeId: string, condition: TransitionCondition, targetNodeId: string | null) => {
+      updateNode(nodeId, prev => {
+        const without = (prev.transitions ?? []).filter(t => t.condition !== condition)
+        if (!targetNodeId) return { ...prev, transitions: without }
+        return {
+          ...prev,
+          transitions: [...without, { condition, targetNodeId }],
+        }
+      })
+    },
+    [updateNode]
   )
 
-  const setHintNode = useCallback(
-    (nodeId: string, hintNodeId: string | null) => {
-      updateNode(nodeId, prev => ({ ...prev, hintNodeId }))
-    }, [updateNode]
-  )
+  // ── Question linkage ──────────────────────────────────────────────────────
 
-  const updateQuiz = useCallback(
-    (nodeId: string, quiz: QuizData) => {
-      updateNode(nodeId, prev => ({ ...prev, quiz }))
-    }, [updateNode]
-  )
+  /**
+   * Links a Question DB record to a node after creation.
+   * Question is the source of truth for interaction config and topic.
+   */
+const addQuestionId = useCallback(
+  (nodeId: string, questionId: number) => {
+    updateNode(nodeId, prev => ({
+      ...prev,
+      questionIds: [...(prev.questionIds ?? []), questionId],
+    }))
+  },
+  [updateNode]
+)
 
-  // Links a Question DB record to a node after creation
-  const setQuestionId = useCallback(
-    (nodeId: string, questionId: number) => {
-      updateNode(nodeId, prev => ({ ...prev, questionId }))
-    }, [updateNode]
-  )
+const removeQuestionId = useCallback(
+  (nodeId: string, questionId: number) => {
+    updateNode(nodeId, prev => ({
+      ...prev,
+      questionIds: (prev.questionIds ?? []).filter(id => id !== questionId),
+    }))
+  },
+  [updateNode]
+)
 
-  return { addNode, deleteNode, changeNodeType, setNextNode, setHintNode, updateQuiz, updateNode, setQuestionId }
+  return {
+    addNode,
+    deleteNode,
+    changeNodeType,
+    setTransition,
+    addQuestionId,
+    removeQuestionId,
+    updateNode,
+  }
 }

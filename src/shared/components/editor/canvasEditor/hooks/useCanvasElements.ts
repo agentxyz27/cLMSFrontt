@@ -18,7 +18,7 @@ export function useCanvasElements({
       setLessonContent(prev => ({
         ...prev,
         nodes: prev.nodes.map(n =>
-          n.id === activeNodeId ? { ...n, contentJson: updater(n.contentJson) } : n
+          n.id === activeNodeId ? { ...n, content: updater(n.content) } : n
         )
       }))
     },

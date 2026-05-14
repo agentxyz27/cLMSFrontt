@@ -1,13 +1,13 @@
 import { useState } from 'react'
-import type { CanvasElement, DragTargetProps } from '@/shared/types'
+import type { CanvasElement } from '@/shared/types'
 
-type MatchState = Record<string, string | null> // targetId → itemId | null
+type MatchState = Record<string, string | null>
 
 interface UseDragMatchProps {
   targets: CanvasElement[]
   hints: string[]
   disabled: boolean
-  onSubmit: (answer: unknown, correct: boolean) => void
+  onSubmit: (answer: unknown) => void
   onHint: (hintIndex: number) => void
 }
 
@@ -16,7 +16,6 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
     Object.fromEntries(targets.map(t => [t.id, null]))
   )
   const [draggingId, setDraggingId] = useState<string | null>(null)
-  const [wrongFeedback, setWrongFeedback] = useState(false)
   const [hintIndex, setHintIndex] = useState<number | null>(null)
 
   const placedItemIds = new Set(Object.values(matches).filter(Boolean) as string[])
@@ -38,7 +37,6 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
       return next
     })
     setDraggingId(null)
-    setWrongFeedback(false)
   }
 
   function handleDragOver(e: React.DragEvent) {
@@ -48,21 +46,12 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
   function handleUnplace(targetId: string) {
     if (disabled) return
     setMatches(prev => ({ ...prev, [targetId]: null }))
-    setWrongFeedback(false)
   }
 
   function handleSubmit() {
     if (disabled) return
-    const correct = targets.every(target => {
-      const p = target.props as DragTargetProps
-      return matches[target.id] === p.accepts
-    })
-    if (!correct) {
-      setWrongFeedback(true)
-      setTimeout(() => setWrongFeedback(false), 1000)
-    }
     const answer = Object.fromEntries(targets.map(t => [t.id, matches[t.id]]))
-    onSubmit(answer, correct)
+    onSubmit(answer)
   }
 
   function handleShowHint() {
@@ -73,7 +62,7 @@ export function useDragMatch({ targets, hints, disabled, onSubmit, onHint }: Use
   }
 
   return {
-    matches, draggingId, wrongFeedback, hintIndex,
+    matches, draggingId, hintIndex,
     placedItemIds, allFilled,
     handleDragStart, handleDrop, handleDragOver, handleUnplace, handleSubmit, handleShowHint,
   }

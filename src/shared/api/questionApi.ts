@@ -17,7 +17,6 @@ export const questionApi = {
       topicId: number
       templateType: string
       contentJson: Record<string, unknown>
-      order?: number
     },
     token: string
   ) => api.post<{ message: string; question: Question }>('/questions', data, token),
@@ -29,7 +28,6 @@ export const questionApi = {
       templateType?: string
       topicId?: number
       contentJson?: Record<string, unknown>
-      order?: number
     },
     token: string
   ) => api.patch<{ message: string; question: Question }>(`/questions/${id}`, data, token),

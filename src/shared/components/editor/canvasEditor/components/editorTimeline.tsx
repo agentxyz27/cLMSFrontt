@@ -80,7 +80,7 @@ export default function EditorTimeline({
               }}
             >
               <div style={{ flex: 1, pointerEvents: 'none', overflow: 'hidden' }}>
-                <PreviewStage contentJson={node.contentJson} previewWidth={132} />
+                <PreviewStage contentJson={node.content} previewWidth={132} />
               </div>
               <div style={{
                 padding: '3px 7px',

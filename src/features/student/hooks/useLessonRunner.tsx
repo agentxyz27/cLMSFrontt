@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-
 import { progressApi } from '@/shared/api/progressApi'
 import { attemptApi } from '@/shared/api/attemptApi'
-import type { LessonNode, LessonGraph, QuestionAttemptSession } from '@/shared/types'
+import type {
+  LessonNode, LessonGraph, QuestionAttemptSession, TransitionCondition
+} from '@/shared/types'
 
 interface CompleteResponse {
   message: string
@@ -12,54 +13,114 @@ interface CompleteResponse {
   newBadges: { id: number; name: string; description: string }[]
 }
 
+// ── Node-level attempt state ───────────────────────────────────────────────
+// Tracks progress within a single practice/mastery node.
+
+interface NodeAttemptState {
+  questionIndex: number           // which question in questionIds[] we're on
+  nodeCorrectCount: number        // correct answers this pass
+  nodeRetries: number             // how many times this node has been retried
+  sessions: Record<number, QuestionAttemptSession>  // questionId → session
+  currentSession: QuestionAttemptSession | null
+  sessionToken: string | null
+  feedback: 'correct' | 'wrong' | null
+  hintsUsed: number
+  attempts: number
+  questionFinished: boolean
+  loading: boolean
+  error: string | null
+}
+
+const BLANK_NODE_ATTEMPT: NodeAttemptState = {
+  questionIndex: 0,
+  nodeCorrectCount: 0,
+  nodeRetries: 0,
+  sessions: {},
+  currentSession: null,
+  sessionToken: null,
+  feedback: null,
+  hintsUsed: 0,
+  attempts: 0,
+  questionFinished: false,
+  loading: false,
+  error: null,
+}
+
 export function useLessonRunner(
   graph: LessonGraph | null,
   lessonId: string | undefined,
   token: string | null
 ) {
   const [currentNodeId, setCurrentNodeId] = useState<string | null>(null)
-  const [correctCount, setCorrectCount] = useState(0)
-  const [totalQuizNodes, setTotalQuizNodes] = useState(0)
+  const [nodeAttempt, setNodeAttempt] = useState<NodeAttemptState>(BLANK_NODE_ATTEMPT)
   const [lessonDone, setLessonDone] = useState(false)
   const [reward, setReward] = useState<CompleteResponse | null>(null)
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
-  const [session, setSession] = useState<QuestionAttemptSession | null>(null)
-  const [sessionToken, setSessionToken] = useState<string | null>(null)
-  const [feedback, setFeedback] = useState<'correct' | 'wrong' | null>(null)
-  const [hintsUsed, setHintsUsed] = useState(0)
-  const [attempts, setAttempts] = useState(0)
-  const [attemptLoading, setAttemptLoading] = useState(false)
-  const [attemptError, setAttemptError] = useState<string | null>(null)
-  const [questionFinished, setQuestionFinished] = useState(false)
 
+  // Lesson-level totals for MPS calculation
+  const [lessonCorrectCount, setLessonCorrectCount] = useState(0)
+  const [lessonTotalQuestions, setLessonTotalQuestions] = useState(0)
+
+  const nodeAttemptRef = useRef<NodeAttemptState>(BLANK_NODE_ATTEMPT)
   const sessionTokenRef = useRef<string | null>(null)
-  const questionFinishedRef = useRef(false)
-  const currentNodeRef = useRef<LessonNode | null>(null)
+
+  // ── Init ────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!graph?.nodes?.length) return
-    setCurrentNodeId(graph.nodes[0].id)
-    setTotalQuizNodes(graph.nodes.filter(n => n.type === 'quiz').length)
+    const startNode = graph.nodes.find(n => n.id === graph.startNodeId) ?? graph.nodes[0]
+    setCurrentNodeId(startNode.id)
+
+    // Count total questions across all practice/mastery nodes for MPS
+    const total = graph.nodes
+      .filter(n => n.type === 'practice' || n.type === 'mastery')
+      .reduce((sum, n) => sum + (n.questionIds?.length ?? 0), 0)
+    setLessonTotalQuestions(total)
   }, [graph])
 
-  const currentNode: LessonNode | null =
-    graph?.nodes?.find(n => n.id === currentNodeId) ?? null
+  // ── Derived ─────────────────────────────────────────────────────────────
 
-  useEffect(() => { currentNodeRef.current = currentNode }, [currentNode])
+  const nodeMap = graph
+    ? Object.fromEntries(graph.nodes.map(n => [n.id, n]))
+    : {}
+
+  const currentNode: LessonNode | null = currentNodeId ? nodeMap[currentNodeId] ?? null : null
+
+  const isInteractiveNode = currentNode?.type === 'practice' || currentNode?.type === 'mastery'
+
+  const currentQuestionId: number | null = isInteractiveNode
+    ? (currentNode?.questionIds?.[nodeAttempt.questionIndex] ?? null)
+    : null
+
+  const nodeQuestionCount = currentNode?.questionIds?.length ?? 0
+
+  // ── Auto-start question session when entering interactive node ──────────
 
   useEffect(() => {
-    if (!currentNode || currentNode.type !== 'quiz' || !currentNode.questionId || !token) return
-    startQuestion(currentNode.questionId)
-  }, [currentNodeId])
+    if (!currentNode || !isInteractiveNode || !token) return
+    if (!currentQuestionId) return
+    startQuestionSession(currentQuestionId)
+  }, [currentNodeId, nodeAttempt.questionIndex])
+
+  // ── Transition resolver ─────────────────────────────────────────────────
+
+  function resolveTransition(condition: TransitionCondition): string | null {
+    if (!currentNode) return null
+    return currentNode.transitions.find(t => t.condition === condition)?.targetNodeId
+      ?? currentNode.transitions.find(t => t.condition === 'always')?.targetNodeId
+      ?? null
+  }
+
+  // ── Lesson complete ─────────────────────────────────────────────────────
 
   async function handleLessonComplete() {
     if (lessonDone || !token) return
     setLessonDone(true)
     setCompleting(true)
     try {
-      const score = totalQuizNodes > 0
-        ? Math.round((correctCount / totalQuizNodes) * 100)
+      const score = lessonTotalQuestions > 0
+        ? Math.round((lessonCorrectCount / lessonTotalQuestions) * 100)
         : 100
       const res = await progressApi.completeLesson(
         { lessonId: Number(lessonId), score },
@@ -73,131 +134,239 @@ export function useLessonRunner(
     }
   }
 
-  function goToNode(nodeId: string | null) {
-    const nodes = graph?.nodes ?? []
-    resetAttempt()
-    if (!nodeId) {
-      const currentIndex = nodes.findIndex(n => n.id === currentNodeId)
-      const nextNode = nodes[currentIndex + 1]
-      if (nextNode) { setCurrentNodeId(nextNode.id); return }
+  // ── Node transition ─────────────────────────────────────────────────────
+
+  function transitionTo(condition: TransitionCondition) {
+    const targetId = resolveTransition(condition)
+    resetNodeAttempt()
+    if (!targetId) {
       handleLessonComplete()
       return
     }
-    const next = nodes.find(n => n.id === nodeId)
-    if (!next) { handleLessonComplete(); return }
-    if (next.type === 'result') {
-      setCurrentNodeId(nodeId)
+    const target = nodeMap[targetId]
+    if (!target) { handleLessonComplete(); return }
+    if (target.type === 'reward') {
+      setCurrentNodeId(targetId)
       setTimeout(() => handleLessonComplete(), 1500)
       return
     }
-    setCurrentNodeId(nodeId)
+    setCurrentNodeId(targetId)
   }
 
-  const resetAttempt = useCallback(() => {
-    setSession(null)
-    setSessionToken(null)
-    sessionTokenRef.current = null
-    setFeedback(null)
-    setHintsUsed(0)
-    setAttempts(0)
-    setAttemptLoading(false)
-    setAttemptError(null)
-    setQuestionFinished(false)
-    questionFinishedRef.current = false
-  }, [])
+  // ── Called by student on hook/teach/reward nodes (Next button) ──────────
 
-  const startQuestion = useCallback(async (questionId: number): Promise<string | null> => {
-    if (!token) return null
-    setAttemptLoading(true)
-    setAttemptError(null)
+  function advanceAlways() {
+    transitionTo('always')
+  }
+
+  // ── Called after all questions in node are done ─────────────────────────
+
+  function evaluateNode(finalCorrectCount: number) {
+    if (!currentNode || !graph) return
+
+    const total = currentNode.questionIds?.length ?? 0
+    const score = total > 0 ? (finalCorrectCount / total) * 100 : 0
+    const passing = currentNode.passingScore ?? graph.settings.passingScore
+    const retryLimit = currentNode.retryLimit ?? graph.settings.retryLimit ?? 0
+
+    if (score >= passing) {
+      transitionTo('passed')
+    } else if (nodeAttemptRef.current.nodeRetries < retryLimit) {
+      // Retry — reset question index but keep retry count
+      setNodeAttempt(prev => {
+        const next = {
+          ...BLANK_NODE_ATTEMPT,
+          nodeRetries: prev.nodeRetries + 1,
+        }
+        nodeAttemptRef.current = next
+        return next
+      })
+    } else {
+      transitionTo('failed')
+    }
+  }
+
+  // ── Session management ──────────────────────────────────────────────────
+
+  const startQuestionSession = useCallback(async (questionId: number) => {
+    if (!token) return
+    setNodeAttempt(prev => ({ ...prev, loading: true, error: null }))
     try {
       const res = await attemptApi.startQuestion(questionId, token)
-      setSession(res.session)
-      setSessionToken(res.session.sessionToken)
-      sessionTokenRef.current = res.session.sessionToken
-      setHintsUsed(res.session.hintsUsed)
-      setAttempts(res.session.attempts)
-      if (res.session.isSubmitted) {
-        setQuestionFinished(true)
-        questionFinishedRef.current = true
-      }
-      return res.session.sessionToken
+      const session = res.session
+      sessionTokenRef.current = session.sessionToken
+      setNodeAttempt(prev => {
+        const next = {
+          ...prev,
+          currentSession: session,
+          sessionToken: session.sessionToken,
+          hintsUsed: session.hintsUsed,
+          attempts: session.attempts,
+          questionFinished: session.isSubmitted,
+          loading: false,
+          sessions: { ...prev.sessions, [questionId]: session },
+        }
+        nodeAttemptRef.current = next
+        return next
+      })
     } catch (err: unknown) {
-      setAttemptError(err instanceof Error ? err.message : 'Failed to start question')
-      return null
-    } finally {
-      setAttemptLoading(false)
+      setNodeAttempt(prev => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Failed to start question',
+      }))
     }
   }, [token])
 
-  const submitAnswer = useCallback(async (answer: unknown, correct: boolean) => {
-    if (!token || questionFinishedRef.current) return
+  const submitAnswer = useCallback(async (answer: unknown) => {
+    if (!token || nodeAttemptRef.current.questionFinished) return
+    const sessionToken = sessionTokenRef.current
+    if (!sessionToken) return
 
-    let token_ = sessionTokenRef.current
-    if (!token_) {
-      const node = currentNodeRef.current
-      if (!node?.questionId) return
-      token_ = await startQuestion(node.questionId)
-      if (!token_) return
-    }
-
-    setAttemptLoading(true)
-    setAttemptError(null)
+    setNodeAttempt(prev => ({ ...prev, loading: true, error: null }))
     try {
-      const res = await attemptApi.submitAnswer(token_, { answer, correct }, token)
-      setSession(res.session)
-      setAttempts(res.session.attempts)
-      setFeedback(correct ? 'correct' : 'wrong')
+      const res = await attemptApi.submitAnswer(sessionToken, { answer }, token)
+      const correct = res.correct  // server decided
 
-      if (correct) {
-        setQuestionFinished(true)
-        questionFinishedRef.current = true
-        setCorrectCount(prev => prev + 1)
-        // Student clicks Next → in activeLessonView to advance
-      } else {
-        setTimeout(() => setFeedback(null), 1000)
+      if (correct) setLessonCorrectCount(prev => prev + 1)
+
+      setNodeAttempt(prev => {
+        const next = {
+          ...prev,
+          currentSession:  res.session,
+          attempts:        res.session.attempts,
+          feedback:        correct ? 'correct' as const : 'wrong' as const,
+          questionFinished: correct,
+          nodeCorrectCount: prev.nodeCorrectCount + (correct ? 1 : 0),
+          loading:         false,
+        }
+        nodeAttemptRef.current = next
+        return next
+      })
+
+      if (!correct) {
+        setTimeout(() => setNodeAttempt(prev => ({ ...prev, feedback: null })), 1000)
       }
     } catch (err: unknown) {
-      setAttemptError(err instanceof Error ? err.message : 'Failed to submit answer')
-    } finally {
-      setAttemptLoading(false)
+      setNodeAttempt(prev => ({
+        ...prev, loading: false,
+        error: err instanceof Error ? err.message : 'Failed to submit answer',
+      }))
     }
-  }, [token, startQuestion])
+  }, [token])
+
+  // ── Called when student clicks Next after finishing a question ──────────
+
+  function advanceQuestion() {
+    const { questionIndex, nodeCorrectCount } = nodeAttemptRef.current
+    const nextIndex = questionIndex + 1
+
+    if (nextIndex < nodeQuestionCount) {
+      // More questions in this node
+      setNodeAttempt(prev => {
+        const next = {
+          ...prev,
+          questionIndex: nextIndex,
+          currentSession: null,
+          sessionToken: null,
+          feedback: null,
+          hintsUsed: 0,
+          attempts: 0,
+          questionFinished: false,
+        }
+        nodeAttemptRef.current = next
+        sessionTokenRef.current = null
+        return next
+      })
+    } else {
+      // All questions done — evaluate node
+      evaluateNode(nodeCorrectCount)
+    }
+  }
 
   const useHint = useCallback(async (hintIndex: number) => {
-    if (!token || !sessionTokenRef.current || questionFinishedRef.current) return
-    setAttemptError(null)
+    if (!token || !sessionTokenRef.current || nodeAttemptRef.current.questionFinished) return
     try {
       const res = await attemptApi.useHint(sessionTokenRef.current, hintIndex, token)
-      setHintsUsed(res.hintsUsed)
+      setNodeAttempt(prev => ({ ...prev, hintsUsed: res.hintsUsed }))
     } catch (err: unknown) {
-      setAttemptError(err instanceof Error ? err.message : 'Failed to record hint')
+      setNodeAttempt(prev => ({
+        ...prev,
+        error: err instanceof Error ? err.message : 'Failed to record hint',
+      }))
     }
   }, [token])
 
   const giveUp = useCallback(async () => {
-    if (!token || !sessionTokenRef.current || questionFinishedRef.current) return
-    setAttemptLoading(true)
-    setAttemptError(null)
+    if (!token || !sessionTokenRef.current || nodeAttemptRef.current.questionFinished) return
+    setNodeAttempt(prev => ({ ...prev, loading: true }))
     try {
       const res = await attemptApi.finishSession(sessionTokenRef.current, token)
-      setSession(res.session)
-      setQuestionFinished(true)
-      questionFinishedRef.current = true
-      // Student clicks Next → in activeLessonView to advance (same as correct answer flow)
+      setNodeAttempt(prev => {
+        const next = {
+          ...prev,
+          currentSession: res.session,
+          questionFinished: true,
+          loading: false,
+        }
+        nodeAttemptRef.current = next
+        return next
+      })
     } catch (err: unknown) {
-      setAttemptError(err instanceof Error ? err.message : 'Failed to finish session')
-    } finally {
-      setAttemptLoading(false)
+      setNodeAttempt(prev => ({
+        ...prev,
+        loading: false,
+        error: err instanceof Error ? err.message : 'Failed to give up',
+      }))
     }
   }, [token])
 
+  // ── Reset ───────────────────────────────────────────────────────────────
+
+  function resetNodeAttempt() {
+    sessionTokenRef.current = null
+    nodeAttemptRef.current = BLANK_NODE_ATTEMPT
+    setNodeAttempt(BLANK_NODE_ATTEMPT)
+  }
+
+  // ── Exposed ─────────────────────────────────────────────────────────────
+
   return {
-    currentNode, currentNodeId, goToNode,
-    session, sessionToken, feedback, hintsUsed, attempts,
-    attemptLoading, attemptError, questionFinished,
-    submitAnswer, useHint, giveUp,
-    correctCount, totalQuizNodes,
-    lessonDone, reward, completing, completeError,
+    // Node
+    currentNode,
+    currentNodeId,
+    isInteractiveNode,
+    currentQuestionId,
+    nodeQuestionCount,
+
+    // Per-question attempt state
+    session:          nodeAttempt.currentSession,
+    sessionToken:     nodeAttempt.sessionToken,
+    feedback:         nodeAttempt.feedback,
+    hintsUsed:        nodeAttempt.hintsUsed,
+    attempts:         nodeAttempt.attempts,
+    attemptLoading:   nodeAttempt.loading,
+    attemptError:     nodeAttempt.error,
+    questionFinished: nodeAttempt.questionFinished,
+    questionIndex:    nodeAttempt.questionIndex,
+
+    // Node-level state
+    nodeCorrectCount:  nodeAttempt.nodeCorrectCount,
+    nodeRetries:       nodeAttempt.nodeRetries,
+
+    // Actions
+    submitAnswer,
+    useHint,
+    giveUp,
+    advanceQuestion,   // called after finishing a question in practice/mastery
+    advanceAlways,     // called on hook/teach/reward Next button
+
+    // Lesson completion
+    lessonCorrectCount,
+    lessonTotalQuestions,
+    lessonDone,
+    reward,
+    completing,
+    completeError,
   }
 }

@@ -6,25 +6,38 @@
  * Import from here instead of redefining per file.
  *
  * Architecture: Everything is a LessonGraph.
- * CanvasData is a leaf rendering primitive — only inside LessonNode.contentJson.
+ * CanvasData is a leaf rendering primitive — only inside LessonNode.content.
  *
  * Hierarchy:
- *   LessonGraph (flow logic)
+ *   LessonGraph (instructional flow)
  *    ├── nodes[]
- *    │     └── LessonNode
+ *    │     └── LessonNode (pedagogical stage)
  *    │            └── CanvasData (visual leaf) ← only here
  *    └── settings
  *
  * Access pattern:
- *   graph  = contentJson             (LessonGraph)
- *   node   = graph.nodes[0]         (LessonNode)
- *   canvas = node.contentJson       (CanvasData)
+ *   graph       = lesson.contentJson           (LessonGraph)
+ *   node        = graph.nodes[0]              (LessonNode)
+ *   canvas      = node.content               (CanvasData)
+ *   interaction = fetch Question by node.questionId
+ *
+ * Ownership rules:
+ *   LessonGraph  → instructional flow, traversal, settings
+ *   LessonNode   → pedagogical stage, visual content, transitions
+ *   CanvasData   → visual rendering only — never educational truth
+ *   Question     → interaction config, correctness, hints, topic mapping
  *
  * Changes from previous version:
- * - LessonContent removed — replaced by LessonGraph everywhere
- * - Template.contentJson → LessonGraph (was CanvasData)
- * - LessonGraphNodeMap added for efficient graph traversal
- * - CanvasData comment updated — leaf primitive, not "internal only"
+ * - LessonNodeType replaced: explanation/example/quiz/hint/result
+ *                        → hook/teach/practice/mastery/reward
+ * - LessonNode.contentJson renamed → content
+ * - LessonNode.nextNodeId / hintNodeId removed → transitions[]
+ * - LessonNode.quiz (QuizData) removed → Question.contentJson owns this
+ * - LessonNode.topicId removed → Question.topicId is source of truth
+ * - LessonNode.interaction removed → Question.contentJson owns this
+ * - LessonGraph.version + startNodeId added
+ * - TransitionCondition added as named type
+ * - InteractionDefinition kept for runtime hydration use only (not on LessonNode)
  */
 
 // ── Primitives ─────────────────────────────────────────────────────────────
@@ -47,7 +60,9 @@ export interface Student {
 
 // ── Canvas Types ───────────────────────────────────────────────────────────
 // CanvasData is a leaf-level rendering primitive.
-// Used ONLY inside LessonNode.contentJson — never at top level.
+// Lives ONLY inside LessonNode.content — never at top level.
+// Responsible for: rendering, layout, animation, skins.
+// NOT responsible for: correctness, pedagogy, topic mapping.
 
 export interface TextElementProps {
   text: string
@@ -69,6 +84,9 @@ export interface ShapeElementProps {
   shape: 'rect' | 'ellipse'
 }
 
+// Transitional: drag-item, drag-target, mc-option remain as CanvasElementTypes
+// for now. Long-term direction: canvas = visuals only (text/image/shape/sprite).
+// Interaction logic will fully migrate into Question.contentJson.
 export type CanvasElementProps =
   | TextElementProps
   | ImageElementProps
@@ -77,7 +95,13 @@ export type CanvasElementProps =
   | DragTargetProps
   | McOptionProps
 
-export type CanvasElementType = 'text' | 'image' | 'shape' | 'drag-item' | 'drag-target' | 'mc-option'
+export type CanvasElementType =
+  | 'text'
+  | 'image'
+  | 'shape'
+  | 'drag-item'    // transitional — move to interaction config long-term
+  | 'drag-target'  // transitional — move to interaction config long-term
+  | 'mc-option'    // transitional — move to interaction config long-term
 
 export interface CanvasElement {
   id: string
@@ -99,7 +123,7 @@ export interface CanvasConfig {
 
 /**
  * CanvasData — leaf-level rendering primitive.
- * Lives ONLY inside LessonNode.contentJson.
+ * Lives ONLY inside LessonNode.content.
  * Never pass CanvasData directly to a lesson or template field.
  */
 export interface CanvasData {
@@ -108,29 +132,29 @@ export interface CanvasData {
 }
 
 // ── Drag Match ─────────────────────────────────────────────────────────────
+// These props live on CanvasElement temporarily.
+// Source of truth for correctness is Question.contentJson (DragMatchConfig).
 
 export interface DragItemProps {
-  label: string        // text shown on the draggable card
-  color: string        // background color of the card
-  textColor: string    // label text color
+  label: string      // text shown on the draggable card
+  color: string      // background color of the card
+  textColor: string  // label text color
 }
 
 export interface DragTargetProps {
-  accepts: string      // id of the drag-item that belongs here
-  label: string        // label shown inside the drop zone (e.g. "One Half")
-  color: string        // border/background color of the drop zone
+  accepts: string    // transitional: correctness ref — will move to interaction config
+  label: string      // label shown inside the drop zone
+  color: string      // border/background color of the drop zone
 }
 
 // ── Multiple Choice Option ─────────────────────────────────────────────────
-// Teacher places mc-option elements on canvas freely.
-// correctIndex is stored at the node level (existing QuizData).
-// Each option element has an index that maps to QuizData.correctIndex.
+// Transitional: correctness lives in Question.contentJson (MultipleChoiceConfig).
 
 export interface McOptionProps {
-  label: string        // choice text
-  index: number        // 0-based index — maps to QuizData.correctIndex
-  color: string        // background color
-  textColor: string    // text color
+  label: string      // choice text
+  index: number      // 0-based index — maps to MultipleChoiceConfig.correctIndex
+  color: string      // background color
+  textColor: string  // text color
 }
 
 // ── Grade & Section ────────────────────────────────────────────────────────
@@ -182,27 +206,111 @@ export interface ClassRoom {
 }
 
 // ── Lesson Graph System ────────────────────────────────────────────────────
+// The four layers:
+//
+//   LessonGraph  = instructional flow container
+//   LessonNode   = pedagogical stage (hook / teach / practice / mastery / reward)
+//   CanvasData   = visual rendering layer (lives on node.content)
+//   Question     = measurable interaction layer (referenced by node.questionId)
+//
+// Rule: if it measures learning → it belongs to Question, not LessonNode.
 
-export type LessonNodeType = 'explanation' | 'example' | 'quiz' | 'hint' | 'result'
+/**
+ * Pedagogical stage type.
+ *
+ * | Type     | Role                        | Needs Question? |
+ * |----------|-----------------------------|-----------------|
+ * | hook     | grab attention, set context | no              |
+ * | teach    | deliver new concept         | no              |
+ * | practice | guided skill practice       | yes             |
+ * | mastery  | independent assessment      | yes             |
+ * | reward   | celebrate completion        | no              |
+ */
+export type LessonNodeType =
+  | 'hook'
+  | 'teach'
+  | 'practice'
+  | 'mastery'
+  | 'reward'
 
-export interface QuizData {
-  question: string
-  choices: string[]
-  correctIndex: number
+/**
+ * Runtime transition condition.
+ * Controls which path the lesson takes after a node resolves.
+ */
+export type TransitionCondition =
+  | 'always'   // hook, teach, reward — unconditional
+  | 'passed'   // node score >= passingScore
+  | 'failed'   // retries exhausted without passing
+
+/**
+ * A single directed edge in the lesson graph.
+ * Nodes may have multiple transitions with different conditions.
+ */
+export interface Transition {
+  targetNodeId: string
+  condition: TransitionCondition
 }
 
 /**
- * LessonNode — a single behavior unit in the graph.
- * contentJson holds the CanvasData visual layer for this node.
+ * Runtime feedback behavior attached to a node.
+ * Separate from Question hints — this is the node-level UX response.
+ */
+export interface FeedbackDefinition {
+  correctMessage?: string
+  incorrectMessage?: string
+  allowRetry?: boolean
+  hints?: string[]
+}
+
+/**
+ * LessonNode — a single pedagogical stage inside the lesson graph.
+ *
+ * Owns:
+ * - instructional role (type)
+ * - visual content (content → CanvasData)
+ * - runtime transitions (transitions[])
+ * - optional feedback UX (feedback)
+ * - reference to measurable interaction (questionId → Question)
+ *
+ * Does NOT own:
+ * - interaction correctness logic   → Question.contentJson
+ * - answer validation               → Question.contentJson
+ * - topic mastery mapping           → Question.topicId
+ * - hint content                    → Question.contentJson.hints
  */
 export interface LessonNode {
   id: string
   type: LessonNodeType
-  contentJson: CanvasData
-  quiz?: QuizData
-  questionId?: number
-  nextNodeId: string | null
-  hintNodeId?: string | null
+  title?: string
+  passingScore?: number  // overrides LessonSettings.passingScore for this node
+  retryLimit?: number    // overrides LessonSettings.retryLimit for this node
+
+  /**
+   * References Question DB records for this stage.
+   * practice → 1-3 questions (guided, hints allowed)
+   * mastery  → 10+ questions (assessment, scored)
+   * hook/teach/reward → always empty
+   */
+  questionIds?: number[]
+
+  /**
+   * Visual rendering layer for this node.
+   * Contains canvas layout, elements, and background.
+   */
+  content: CanvasData
+
+  /**
+   * Node-level runtime feedback UX.
+   * Separate from Question hints.
+   */
+  feedback?: FeedbackDefinition
+
+  /**
+   * Directed edges to other nodes.
+   * Resolved by the runtime engine based on condition.
+   * Empty array = end of lesson when all conditions exhausted.
+   */
+  transitions: Transition[]
 }
 
 export interface LessonSettings {
@@ -212,26 +320,86 @@ export interface LessonSettings {
 }
 
 /**
- * LessonGraph — unified graph type for both lessons and templates.
- * Rule: If it is learning content, it MUST be a LessonGraph.
+ * LessonGraph — instructional flow container.
  *
- * Lessons  = active LessonGraph instance
- * Templates = frozen LessonGraph snapshot
+ * Owns:
+ * - lesson progression structure
+ * - pedagogical node sequence
+ * - runtime traversal via startNodeId
+ * - global lesson settings
+ *
+ * Does NOT own:
+ * - interaction correctness  → Question records
+ * - assessment config        → Question.contentJson
+ *
+ * Rule: Lessons and Templates both use LessonGraph.
+ * Templates are frozen LessonGraph snapshots.
  */
 export interface LessonGraph {
+  version: number
+  startNodeId: string
   nodes: LessonNode[]
   settings: LessonSettings
 }
 
 /**
- * NodeMap for efficient graph traversal.
- * Use instead of .find() when traversing at runtime.
- *
+ * NodeMap for O(1) graph traversal.
  * Build with:
  *   const nodeMap = Object.fromEntries(graph.nodes.map(n => [n.id, n]))
  *   const node = nodeMap[someNodeId]
  */
 export type LessonGraphNodeMap = Record<string, LessonNode>
+
+// ── Interaction (runtime hydration only) ──────────────────────────────────
+// These types are NOT stored on LessonNode.
+// They represent the hydrated shape of Question.contentJson after fetch.
+// Used by the runtime engine and interaction components after loading a Question.
+//
+// Flow:
+//   node.questionId → fetch Question → hydrate InteractionDefinition → render
+
+export type InteractionType =
+  | 'drag-match'
+  | 'multiple-choice'
+  | 'fill-step'
+  | 'number-line'
+
+export interface DragMatchConfig {
+  items: { id: string; label: string }[]
+  targets: { id: string; accepts: string }[]
+}
+
+export interface MultipleChoiceConfig {
+  question: string
+  choices: string[]
+  correctIndex: number
+}
+
+export interface FillStepConfig {
+  steps: { id: string; text: string; isMissing?: boolean }[]
+  answer: string
+}
+
+export interface NumberLineConfig {
+  min: number
+  max: number
+  correctValue: number
+}
+
+export type InteractionConfig =
+  | DragMatchConfig
+  | MultipleChoiceConfig
+  | FillStepConfig
+  | NumberLineConfig
+
+/**
+ * Hydrated interaction definition.
+ * Produced at runtime from Question.contentJson — never stored on LessonNode.
+ */
+export interface InteractionDefinition {
+  type: InteractionType
+  config: InteractionConfig
+}
 
 // ── Lesson ─────────────────────────────────────────────────────────────────
 
@@ -259,16 +427,16 @@ export interface LessonSummary {
 //
 // To render a template preview:
 //   const graph = template.contentJson
-//   const canvas = graph?.nodes?.[0]?.contentJson
-//   <CanvasPreview contentJson={canvas} />
+//   const canvas = graph?.nodes?.[0]?.content
+//   <CanvasPreview canvasData={canvas} />
 
 export interface Template {
   id: number
   title: string
-  contentJson: LessonGraph        // never null — templates always have content
-  topicId: number           // ← add
-  difficulty: number        // ← add
-  interactionType: string   // ← add
+  contentJson: LessonGraph  // never null — templates always have content
+  topicId: number
+  difficulty: number
+  interactionType: string
   isPublic: boolean
   usageCount: number
   teacher?: { id: number; name: string } | null
@@ -336,15 +504,17 @@ export interface Topic {
 }
 
 // ── Question ───────────────────────────────────────────────────────────────
+// Question is the source of truth for measurable interactions.
 // templateType determines which frontend interaction component renders.
-// contentJson holds the full question config including answer key and hints.
+// topicId is the authoritative topic tag — do not duplicate on LessonNode.
+// contentJson holds the full interaction config including answer key and hints.
 
 export type TemplateType = 'DRAG_MATCH' | 'FILL_STEP' | 'VISUAL_GROUPING' | 'NUMBER_LINE'
 
 export interface Question {
   id: number
   lessonId: number
-  topicId: number
+  topicId: number           // source of truth for topic — never duplicate on LessonNode
   templateType: TemplateType
   contentJson: QuestionContent
   order: number
@@ -364,8 +534,11 @@ export interface QuestionSummary {
   topic?: { id: number; name: string }
 }
 
-// contentJson shape for each templateType
-// Frontend uses this to render the correct interaction component
+/**
+ * QuestionContent — full interaction config stored in Question.contentJson.
+ * This is what InteractionDefinition hydrates from at runtime.
+ * Includes: prompt, answer key, hints, interaction-specific fields.
+ */
 export interface QuestionContent {
   prompt: string
   hints?: string[]
@@ -400,7 +573,7 @@ export interface QuestionAttemptSession {
   attempts: number
   hintsUsed: number
   isSubmitted: boolean
-  correct: boolean | null      // null = not finished yet
+  correct: boolean | null  // null = not yet finished
   startedAt: string
   submittedAt: string | null
   question?: Question
@@ -463,10 +636,10 @@ export interface StudentLessonSnapshot {
   lessonId: number
   totalQuestions: number
   correctCount: number
-  mps: number              // (correctCount / totalQuestions) * 100
+  mps: number          // (correctCount / totalQuestions) * 100
   avgAttempts: number
   avgHintsUsed: number
-  isAtRisk: boolean        // mps < 75
+  isAtRisk: boolean    // mps < 75 (DepEd mastery threshold)
   snapshotAt: string
   student?: { id: number; name: string }
 }
@@ -722,4 +895,3 @@ export interface HeatmapData {
   lessons: { id: number; title: string }[]
   students: HeatmapStudentRow[]
 }
-

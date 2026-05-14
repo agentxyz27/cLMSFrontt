@@ -11,11 +11,10 @@ import ToolStrip from './components/toolStrip'
 import EditorTimeline from './components/editorTimeline'
 import NodeSettingsPopover from './components/nodeSettingsPopover'
 import FloatingElementPanel from './components/floatingElementPanel'
-
 import { useUndoHistory } from './hooks/useUndoHistory'
-
 import { EditorStage } from '../stages'
 import type { LessonGraph, CanvasElement } from '@/shared/types'
+import { normalizeLessonGraph } from '@/shared/utils/normalizeLessonGraph'
 
 interface CanvasEditorProps {
   lessonId: number
@@ -25,30 +24,27 @@ interface CanvasEditorProps {
 }
 
 export default function CanvasEditor({ lessonId, initial, token, onDone }: CanvasEditorProps) {
-  const [lessonContent, setLessonContent] = useState<LessonGraph>(initial ?? BLANK_LESSON)
-  const [activeNodeId, setActiveNodeId]   = useState<string>((initial ?? BLANK_LESSON).nodes[0].id)
+  const [lessonContent, setLessonContent] = useState<LessonGraph>(normalizeLessonGraph(initial ?? BLANK_LESSON))
+  const [activeNodeId, setActiveNodeId] = useState<string>(normalizeLessonGraph(initial ?? BLANK_LESSON).nodes[0].id)
   const [selectedId, setSelectedId]       = useState<string | null>(null)
 
   const activeNode      = lessonContent.nodes.find(n => n.id === activeNodeId) ?? lessonContent.nodes[0]
-  const activeCanvas    = activeNode.contentJson
+  const activeCanvas = activeNode.content ?? (activeNode as any).contentJson                                          // ← was contentJson
   const selectedElement = activeCanvas.elements.find(el => el.id === selectedId) ?? null
-  const isQuizNode      = activeNode.type === 'quiz'
-
+  const needsQuestion   = activeNode.type === 'practice' || activeNode.type === 'mastery'  // ← was isQuizNode
 
   const { contextMenu, contextMenuRef, openAt: openContextMenu, close: closeContextMenu } = useContextMenu()
 
   const { addElement, updateElement, deleteElement, setBackgroundColor, setBackgroundImage, sendBackward, bringForward } =
     useCanvasElements({ activeNodeId, setLessonContent, setSelectedId })
 
-  const { addNode, deleteNode, changeNodeType, setNextNode, setHintNode, updateQuiz, setQuestionId } =
+  const { addNode, deleteNode, changeNodeType, setTransition, addQuestionId, removeQuestionId } =  // ← removed setNextNode, setHintNode, updateQuiz
     useNodeGraph({ setLessonContent, setActiveNodeId, setSelectedId, closeContextMenu })
 
   const { saving, saveError, saveSuccess, save } = useSave(lessonId, token)
 
-  // after the useState block
   const { push: pushUndo, undo, redo } = useUndoHistory(setLessonContent)
 
-  // wrap updateElement / addElement / deleteElement calls to snapshot first
   function handleChange(updated: CanvasElement) {
     pushUndo(lessonContent)
     updateElement(updated)
@@ -64,12 +60,11 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
 
   useKeyboardShortcuts({
     selectedId,
-    onDeleteElement: handleDelete,   // ← was deleteElement
-    onUndo: undo,                    // ← add this
+    onDeleteElement: handleDelete,
+    onUndo: undo,
     onRedo: redo,
     onEscape: () => { closeContextMenu(); setSelectedId(null) },
   })
-
 
   function handleAddDragItem()   { handleAdd(makeDragItem()) }
   function handleAddDragTarget() { handleAdd(makeDragTarget()) }
@@ -112,7 +107,7 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
           <ToolStrip
             background={activeCanvas.canvas.background}
             token={token}
-            isQuizNode={isQuizNode}
+            needsQuestion={needsQuestion}        // ← was isQuizNode
             onAddElement={addElement}
             onAddDragItem={handleAddDragItem}
             onAddDragTarget={handleAddDragTarget}
@@ -178,10 +173,9 @@ export default function CanvasEditor({ lessonId, initial, token, onDone }: Canva
               allNodes={lessonContent.nodes}
               canDelete={lessonContent.nodes.length > 1}
               onChangeType={type => changeNodeType(contextNode.id, type)}
-              onChangeNextNode={id => setNextNode(contextNode.id, id)}
-              onChangeHintNode={id => setHintNode(contextNode.id, id)}
-              onUpdateQuiz={quiz => updateQuiz(contextNode.id, quiz)}
-              onSetQuestionId={setQuestionId}
+              onSetTransition={(condition, targetNodeId) => setTransition(contextNode.id, condition, targetNodeId)}  // ← replaced 3 dead props
+              onAddQuestionId={addQuestionId}
+              onRemoveQuestionId={removeQuestionId}
               lessonId={lessonId}
               token={token}
               onDelete={() => deleteNode(contextNode.id, lessonContent.nodes)}

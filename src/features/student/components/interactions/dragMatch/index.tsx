@@ -7,7 +7,7 @@ interface Props {
   scale: number
   disabled: boolean
   hints: string[]
-  onSubmit: (answer: unknown, correct: boolean) => void
+  onSubmit: (answer: unknown) => void
   onHint: (hintIndex: number) => void
 }
 
@@ -19,7 +19,7 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
   const statics = elements.filter(el => el.type === 'text' || el.type === 'image' || el.type === 'shape')
 
   const {
-    matches, draggingId, wrongFeedback, hintIndex,
+    matches, draggingId, hintIndex,
     placedItemIds, allFilled,
     handleDragStart, handleDrop, handleDragOver, handleUnplace, handleSubmit, handleShowHint,
   } = useDragMatch({ targets, hints, disabled, onSubmit, onHint })
@@ -27,7 +27,6 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
   return (
     <div style={{ fontFamily: 'sans-serif', userSelect: 'none' }}>
 
-      {/* Canvas area */}
       <div style={{
         position: 'relative',
         width: canvas.width * scale,
@@ -39,7 +38,6 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
         } : {}),
         borderRadius: 8, overflow: 'hidden', marginBottom: 16,
       }}>
-
         {statics.map(el => {
           if (el.type === 'text')  return <StaticText  key={el.id} el={el} scale={scale} />
           if (el.type === 'image') return <StaticImage key={el.id} el={el} scale={scale} />
@@ -97,7 +95,6 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
         })}
       </div>
 
-      {/* Item tray */}
       <div style={{
         display: 'flex', flexWrap: 'wrap', gap: 10,
         padding: '12px 16px', background: '#f3f4f6',
@@ -143,14 +140,6 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
         })}
       </div>
 
-      {/* Wrong feedback only — correct feedback owned by activeLessonView */}
-      {wrongFeedback && (
-        <p style={{ color: '#ef4444', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>
-          ❌ Not quite — try again!
-        </p>
-      )}
-
-      {/* Hint */}
       {hintIndex !== null && hints[hintIndex] && (
         <div style={{
           marginBottom: 12, padding: '10px 14px',
@@ -161,7 +150,6 @@ export default function DragMatch({ canvasData, scale, disabled, hints, onSubmit
         </div>
       )}
 
-      {/* Actions */}
       {!disabled && (
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <button

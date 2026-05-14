@@ -3,6 +3,10 @@ import { lessonApi } from '@/shared/api/lessonApi'
 import { templateApi } from '@/shared/api/templateApi'
 import type { LessonGraph, Template } from '@/shared/types'
 
+import { makeDefaultLessonGraph } from '@/shared/components/editor/canvasEditor/factories'
+
+
+
 interface CreatedLesson { id: number; title: string }
 export type Step = 'title' | 'choose' | 'editor'
 
@@ -29,7 +33,7 @@ export function useNewLessonFlow(classRoomId: string, token: string | null) {
     try {
       const res = await lessonApi.create({ title, classRoomId: Number(classRoomId) }, token)
       setLesson(res.lesson)
-      setInitialContent(null)
+      setInitialContent(makeDefaultLessonGraph())  // scaffolded, not null
       setStep('editor')
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to create lesson')

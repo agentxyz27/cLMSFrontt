@@ -12,11 +12,11 @@ interface Props {
   reward: CompleteResponse | null
   completeError: string | null
   correctCount: number
-  totalQuizNodes: number
+  totalQuestions: number  // ← renamed
   classroomId: string
 }
 
-export default function LessonCompleteScreen({ completing, reward, completeError, correctCount, totalQuizNodes, classroomId }: Props) {
+export default function LessonCompleteScreen({ completing, reward, completeError, correctCount, totalQuestions, classroomId }: Props) {
   const navigate = useNavigate()
 
   return (
@@ -27,8 +27,8 @@ export default function LessonCompleteScreen({ completing, reward, completeError
           <p>+{reward.xpEarned} XP earned!</p>
           <p>Total XP: {reward.totalXP}</p>
           <p>Level: {reward.level}</p>
-          {totalQuizNodes > 0 && (
-            <p>Quiz score: {Math.round((correctCount / totalQuizNodes) * 100)}%</p>
+          {totalQuestions > 0 && (
+            <p>Score: {Math.round((correctCount / totalQuestions) * 100)}%</p>
           )}
           {reward.newBadges.length > 0 && (
             <div>

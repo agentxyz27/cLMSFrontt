@@ -6,30 +6,31 @@ export const BLANK_CANVAS: CanvasData = {
 }
 
 export const BLANK_LESSON: LessonGraph = {
+  version: 1,
+  startNodeId: 'node_1',
   nodes: [
     {
       id: 'node_1',
-      type: 'explanation',
-      contentJson: { ...BLANK_CANVAS },
-      nextNodeId: null,
-      hintNodeId: null
+      type: 'hook',
+      content: { ...BLANK_CANVAS },
+      transitions: []
     }
   ],
   settings: { passingScore: 70, retryLimit: null, badgeId: null }
 }
 
 export const NODE_TYPE_COLOR: Record<LessonNodeType, string> = {
-  explanation: '#3b82f6',
-  example:     '#8b5cf6',
-  quiz:        '#f59e0b',
-  hint:        '#10b981',
-  result:      '#ef4444'
+  hook:     '#60a5fa',  // blue    — attention grab
+  teach:    '#8b5cf6',  // purple  — concept delivery
+  practice: '#f59e0b',  // amber   — guided skill
+  mastery:  '#ef4444',  // red     — independent assessment
+  reward:   '#10b981',  // green   — celebration
 }
 
 export const NODE_TYPE_LABEL: Record<LessonNodeType, string> = {
-  explanation: 'Explanation',
-  example:     'Example',
-  quiz:        'Quiz',
-  hint:        'Hint',
-  result:      'Result'
+  hook:     'Hook',
+  teach:    'Teach',
+  practice: 'Practice',
+  mastery:  'Mastery',
+  reward:   'Reward',
 }
