@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import type { DragMatchContent, MultipleChoiceContent, TemplateType } from '@/shared/types'
 import { createDragMatchCanvas } from '../createDragMatchCanvas'
+import { createMultipleChoiceCanvas } from '../createMultipleChoiceCanvas'
 
 const MATH_TOPICS = [
   { id: 1,  name: 'Addition'       }, { id: 2,  name: 'Subtraction'    },
@@ -15,6 +16,11 @@ const MATH_TOPICS = [
 interface Pair {
   itemLabel: string
   targetLabel: string
+}
+
+interface ChoiceEntry {
+  label: string
+  isCorrect: boolean
 }
 
 interface QuestionConfigModalProps {
@@ -60,13 +66,20 @@ function buildDragMatchContent(
   const items   = pairs.map((p, i) => ({ id: `item_${i + 1}`,   label: p.itemLabel   }))
   const targets = pairs.map((p, i) => ({ id: `target_${i + 1}`, label: p.targetLabel, accepts: `item_${i + 1}` }))
   const canvas  = createDragMatchCanvas({ prompt, items, targets })
-  return {
-    prompt,
-    hints: hints.filter(Boolean),
-    items,
-    targets,
-    canvas,
-  }
+  return { prompt, hints: hints.filter(Boolean), items, targets, canvas }
+}
+
+function buildMultipleChoiceContent(
+  prompt: string,
+  choices: ChoiceEntry[],
+  hints: string[],
+): MultipleChoiceContent {
+  const choiceList = choices.map((c, i) => ({ id: `choice_${i + 1}`, label: c.label }))
+  const correctEntry = choices.find(c => c.isCorrect)
+  const correctIndex = correctEntry ? choices.indexOf(correctEntry) : 0
+  const correctId = `choice_${correctIndex + 1}`
+  const canvas = createMultipleChoiceCanvas({ prompt, choices: choiceList, correctId })
+  return { prompt, hints: hints.filter(Boolean), choices: choiceList, correctId, canvas }
 }
 
 const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModalProps>(
@@ -86,9 +99,10 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
     const [saving,       setSaving      ] = useState(false)
     const [error,        setError       ] = useState<string | null>(null)
 
+    // ── Drag match state ─────────────────────────────────────────────────
     const initPairs = (): Pair[] => {
       if (editContent && 'items' in editContent) {
-        return editContent.items.map((item, i) => ({
+        return (editContent as DragMatchContent).items.map((item, i) => ({
           itemLabel:   item.label,
           targetLabel: (editContent as DragMatchContent).targets[i]?.label ?? '',
         }))
@@ -97,32 +111,74 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
     }
     const [pairs, setPairs] = useState<Pair[]>(initPairs)
 
-    function addPair() {
-      setPairs(prev => [...prev, { itemLabel: '', targetLabel: '' }])
-    }
-
-    function removePair(i: number) {
-      setPairs(prev => prev.filter((_, idx) => idx !== i))
-    }
-
+    function addPair()             { setPairs(prev => [...prev, { itemLabel: '', targetLabel: '' }]) }
+    function removePair(i: number) { setPairs(prev => prev.filter((_, idx) => idx !== i)) }
     function updatePair(i: number, field: keyof Pair, value: string) {
       setPairs(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p))
     }
 
+    // ── Multiple choice state ────────────────────────────────────────────
+    const initChoices = (): ChoiceEntry[] => {
+      if (editContent && 'choices' in editContent) {
+        const mc = editContent as MultipleChoiceContent
+        return mc.choices.map(c => ({ label: c.label, isCorrect: c.id === mc.correctId }))
+      }
+      return [
+        { label: '', isCorrect: true  },
+        { label: '', isCorrect: false },
+        { label: '', isCorrect: false },
+        { label: '', isCorrect: false },
+      ]
+    }
+    const [choices, setChoices] = useState<ChoiceEntry[]>(initChoices)
+
+    function addChoice() {
+      if (choices.length >= 4) return
+      setChoices(prev => [...prev, { label: '', isCorrect: false }])
+    }
+
+    function removeChoice(i: number) {
+      if (choices.length <= 2) return
+      setChoices(prev => {
+        const next = prev.filter((_, idx) => idx !== i)
+        // if we removed the correct one, default to first
+        if (!next.some(c => c.isCorrect)) next[0].isCorrect = true
+        return next
+      })
+    }
+
+    function updateChoiceLabel(i: number, value: string) {
+      setChoices(prev => prev.map((c, idx) => idx === i ? { ...c, label: value } : c))
+    }
+
+    function setCorrect(i: number) {
+      setChoices(prev => prev.map((c, idx) => ({ ...c, isCorrect: idx === i })))
+    }
+
+    // ── Hints ────────────────────────────────────────────────────────────
     function addHint()             { setHints(prev => [...prev, '']) }
     function removeHint(i: number) { setHints(prev => prev.filter((_, idx) => idx !== i)) }
     function updateHint(i: number, value: string) {
       setHints(prev => prev.map((h, idx) => idx === i ? value : h))
     }
 
+    // ── Validation ───────────────────────────────────────────────────────
     function validate(): string | null {
-      if (!prompt.trim())                         return 'Prompt is required'
-      if (pairs.length === 0)                     return 'At least one pair is required'
-      if (pairs.some(p => !p.itemLabel.trim()))   return 'All item labels are required'
-      if (pairs.some(p => !p.targetLabel.trim())) return 'All target labels are required'
+      if (!prompt.trim()) return 'Prompt is required'
+      if (templateType === 'DRAG_MATCH') {
+        if (pairs.length === 0)                     return 'At least one pair is required'
+        if (pairs.some(p => !p.itemLabel.trim()))   return 'All item labels are required'
+        if (pairs.some(p => !p.targetLabel.trim())) return 'All target labels are required'
+      }
+      if (templateType === 'MULTIPLE_CHOICE') {
+        if (choices.length < 2)                       return 'At least 2 choices are required'
+        if (choices.some(c => !c.label.trim()))       return 'All choice labels are required'
+        if (!choices.some(c => c.isCorrect))          return 'One choice must be marked correct'
+      }
       return null
     }
 
+    // ── Submit ───────────────────────────────────────────────────────────
     async function handleSubmit() {
       const validationError = validate()
       if (validationError) { setError(validationError); return }
@@ -132,7 +188,10 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       setError(null)
 
       try {
-        const contentJson = buildDragMatchContent(prompt, pairs, hints)
+        const contentJson = templateType === 'DRAG_MATCH'
+          ? buildDragMatchContent(prompt, pairs, hints)
+          : buildMultipleChoiceContent(prompt, choices, hints)
+
         const { questionApi } = await import('@/shared/api/questionApi')
 
         if (isEdit && editQuestionId) {
@@ -140,10 +199,7 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
           onSave(editQuestionId)
         } else {
           const res = await questionApi.create({
-            lessonId,
-            topicId,
-            templateType,
-            contentJson,
+            lessonId, topicId, templateType, contentJson,
           }, token)
           onSave(res.question.id)
         }
@@ -210,12 +266,16 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
               <input
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="e.g. Match each fraction to its name"
+                placeholder={
+                  templateType === 'DRAG_MATCH'
+                    ? 'e.g. Match each fraction to its name'
+                    : 'e.g. What is 1/2 + 1/4?'
+                }
                 style={{ ...inputCss, marginTop: 4 }}
               />
             </label>
 
-            {/* Pairs — drag match only */}
+            {/* Drag match pairs */}
             {templateType === 'DRAG_MATCH' && (
               <div>
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Pairs</div>
@@ -252,6 +312,50 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
                 <button onClick={addPair} style={{ ...btnCss('ghost'), fontSize: 11, paddingLeft: 0 }}>
                   + Add pair
                 </button>
+              </div>
+            )}
+
+            {/* Multiple choice options */}
+            {templateType === 'MULTIPLE_CHOICE' && (
+              <div>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>
+                  Choices <span style={{ color: '#374151' }}>(click ✓ to mark correct)</span>
+                </div>
+                {choices.map((choice, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 24px', gap: 6, marginBottom: 6, alignItems: 'center' }}>
+                    <button
+                      onClick={() => setCorrect(i)}
+                      title="Mark as correct"
+                      style={{
+                        width: 24, height: 24, borderRadius: '50%', border: 'none',
+                        cursor: 'pointer', fontSize: 13, flexShrink: 0,
+                        background: choice.isCorrect ? '#22c55e' : '#1a1f2e',
+                        color: choice.isCorrect ? '#fff' : '#4b5568',
+                        transition: 'all 0.12s',
+                      }}
+                    >✓</button>
+                    <input
+                      value={choice.label}
+                      onChange={e => updateChoiceLabel(i, e.target.value)}
+                      placeholder={`Choice ${i + 1}`}
+                      style={inputCss}
+                    />
+                    <button
+                      onClick={() => removeChoice(i)}
+                      disabled={choices.length <= 2}
+                      style={{
+                        background: 'none', border: 'none', fontSize: 16,
+                        color: choices.length <= 2 ? '#2a2d3a' : '#f87171',
+                        cursor: choices.length <= 2 ? 'not-allowed' : 'pointer',
+                      }}
+                    >×</button>
+                  </div>
+                ))}
+                {choices.length < 4 && (
+                  <button onClick={addChoice} style={{ ...btnCss('ghost'), fontSize: 11, paddingLeft: 0 }}>
+                    + Add choice
+                  </button>
+                )}
               </div>
             )}
 

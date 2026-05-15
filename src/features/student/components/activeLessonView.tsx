@@ -6,7 +6,7 @@ import { BLANK_CANVAS } from '@/shared/components/editor/canvasEditor/constants'
 import DragMatch from './interactions/dragMatch'
 import type {
   LessonNode, LessonGraph, Question, CanvasData,
-  DragMatchContent, MultipleChoiceContent, McOptionProps,
+  DragMatchContent, MultipleChoiceContent, McOptionProps
 } from '@/shared/types'
 
 interface Props {
@@ -139,45 +139,59 @@ export default function ActiveLessonView({
           </div>
         )}
 
-        {/* MULTIPLE CHOICE — node canvas as visual base, question canvas for mc-option positions */}
+        {/* MULTIPLE CHOICE */}
         {isInteractiveNode && interactionType === 'mc' && mcContent && (
           <div style={{ position: 'relative', width: CW, height: CH }}>
             <ViewerStage canvasData={nodeCanvas} scale={1} />
 
-            {questionCanvas.elements
-              .filter(el => el.type === 'mc-option')
-              .map(el => {
-                const p = el.props as McOptionProps
-                const choice = mcContent.choices[p.index]
-                if (!choice) return null
-                const isSelected = selectedChoiceId === choice.id
-                const isCorrect  = questionFinished && choice.id === mcContent.correctId
-                const isWrong    = questionFinished && isSelected && choice.id !== mcContent.correctId
-                return (
-                  <div
-                    key={el.id}
-                    onClick={() => { if (!questionFinished && !attemptLoading) setSelectedChoiceId(choice.id) }}
-                    style={{
-                      position: 'absolute',
-                      left: el.x, top: el.y,
-                      width: el.width, height: el.height,
-                      borderRadius: 8, boxSizing: 'border-box',
-                      cursor: questionFinished ? 'default' : 'pointer',
-                      border: isCorrect  ? '3px solid #22c55e'
-                            : isWrong    ? '3px solid #ef4444'
-                            : isSelected ? '3px solid #3b82f6'
-                            : '2px solid transparent',
-                      background: isCorrect  ? '#dcfce755'
-                                : isWrong    ? '#fee2e255'
-                                : isSelected ? '#eff6ff55'
-                                : 'transparent',
-                      transition: 'border 0.15s, background 0.15s',
-                    }}
-                  />
-                )
-              })}
+            {mcContent.choices.map((choice, i) => {
+              const el = questionCanvas.elements.filter(e => e.type === 'mc-option')[i]
+              if (!el) return null
+
+              const isSelected = selectedChoiceId === choice.id
+              const isCorrect  = questionFinished && choice.id === mcContent.correctId
+              const isWrong    = questionFinished && isSelected && choice.id !== mcContent.correctId
+              const baseColor  = (el.props as McOptionProps).color  // ← read color from canvas
+
+              return (
+                <div
+                  key={choice.id}
+                  onClick={() => { if (!questionFinished && !attemptLoading) setSelectedChoiceId(choice.id) }}
+                  style={{
+                    position: 'absolute',
+                    left: el.x, top: el.y,
+                    width: el.width, height: el.height,
+                    borderRadius: 8, boxSizing: 'border-box',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    cursor: questionFinished ? 'default' : 'pointer',
+                    background: isCorrect  ? '#22c55e33'
+                              : isWrong    ? '#ef444433'
+                              : isSelected ? '#3b82f633'
+                              : baseColor,
+                    border: isCorrect  ? '3px solid #22c55e'
+                          : isWrong    ? '3px solid #ef4444'
+                          : isSelected ? '3px solid #3b82f6'
+                          : '2px solid transparent',
+                    transition: 'border 0.15s, background 0.15s',
+                    opacity: isWrong ? 0.7 : 1,
+                  }}
+                >
+                  <span style={{
+                    fontSize: 16,
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    textAlign: 'center',
+                    padding: '0 12px',
+                    pointerEvents: 'none',
+                  }}>
+                    {choice.label}
+                  </span>
+                </div>
+              )
+            })}
           </div>
         )}
+
 
         {/* HOOK / TEACH / REWARD */}
         {!isInteractiveNode && (

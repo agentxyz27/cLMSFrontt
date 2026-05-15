@@ -11,10 +11,9 @@ interface Props {
 }
 
 export default function DragMatch({ content, canvasData, scale, disabled, onSubmit, onHint }: Props) {
-  const { canvas, elements } = canvasData
-  const hints = content.hints ?? []
-
-  // Only interactive elements — statics are rendered by ViewerStage on the node canvas
+  const { elements } = canvasData
+  const hints   = content.hints ?? []
+  const statics = elements.filter(el => el.type === 'text' || el.type === 'image' || el.type === 'shape')
   const canvasItems   = elements.filter(el => el.type === 'drag-item')
   const canvasTargets = elements.filter(el => el.type === 'drag-target')
 
@@ -25,17 +24,11 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
   } = useDragMatch({ content, hints, disabled, onSubmit, onHint })
 
   return (
-    <div style={{ fontFamily: 'sans-serif', userSelect: 'none', position: 'absolute', inset: 0 }}>
+    <>
+      {/* transparent overlay — no background, no container styling */}
+      <div style={{ position: 'absolute', inset: 0, userSelect: 'none' }}>
 
-      {/* Transparent overlay — sized to match node canvas, no background */}
-      <div style={{
-        position: 'relative',
-        width: canvas.width * scale,
-        height: canvas.height * scale,
-        overflow: 'hidden',
-      }}>
-
-        {/* Targets */}
+        {/* targets */}
         {canvasTargets.map((el, i) => {
           const target = targets[i]
           if (!target) return null
@@ -51,19 +44,14 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
               onDragOver={handleDragOver}
               style={{
                 position: 'absolute',
-                left: el.x * scale,
-                top: el.y * scale,
-                width: el.width * scale,
-                height: el.height * scale,
+                left: el.x * scale, top: el.y * scale,
+                width: el.width * scale, height: el.height * scale,
                 border: `2px dashed ${p.color}`,
                 borderRadius: 8,
                 background: placedItemId ? `${p.color}22` : `${p.color}10`,
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxSizing: 'border-box',
-                transition: 'background 0.15s',
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center',
+                boxSizing: 'border-box', transition: 'background 0.15s',
               }}
             >
               {placedItem && canvasItem ? (
@@ -101,7 +89,7 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
           )
         })}
 
-        {/* Items */}
+        {/* items */}
         {canvasItems.map((el, i) => {
           const item = items[i]
           if (!item) return null
@@ -112,17 +100,14 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
             return (
               <div key={el.id} style={{
                 position: 'absolute',
-                left: el.x * scale,
-                top: el.y * scale,
-                width: el.width * scale,
-                height: el.height * scale,
-                borderRadius: 8,
-                border: '2px dashed #d1d5db',
-                background: '#ffffff11',
+                left: el.x * scale, top: el.y * scale,
+                width: el.width * scale, height: el.height * scale,
+                borderRadius: 8, border: '2px dashed #ffffff33',
+                background: 'transparent',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxSizing: 'border-box',
               }}>
-                <span style={{ fontSize: 12 * scale, color: '#d1d5db' }}>{item.label}</span>
+                <span style={{ fontSize: 12 * scale, color: '#ffffff44' }}>{item.label}</span>
               </div>
             )
           }
@@ -134,12 +119,9 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
               onDragStart={() => handleDragStart(item.id)}
               style={{
                 position: 'absolute',
-                left: el.x * scale,
-                top: el.y * scale,
-                width: el.width * scale,
-                height: el.height * scale,
-                background: p.color,
-                borderRadius: 8,
+                left: el.x * scale, top: el.y * scale,
+                width: el.width * scale, height: el.height * scale,
+                background: p.color, borderRadius: 8,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxSizing: 'border-box',
                 boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
@@ -160,24 +142,23 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
         })}
       </div>
 
-      {/* Hint display */}
+      {/* hints */}
       {hintIndex !== null && hints[hintIndex] && (
         <div style={{
-          position: 'absolute', bottom: 70, left: '50%', transform: 'translateX(-50%)',
-          padding: '10px 14px',
-          background: '#fefce8', border: '1px solid #fde68a',
-          borderRadius: 8, fontSize: 13, color: '#92400e',
-          whiteSpace: 'nowrap',
+          position: 'fixed', bottom: 100, left: '50%', transform: 'translateX(-50%)',
+          padding: '10px 14px', background: '#fefce8',
+          border: '1px solid #fde68a', borderRadius: 8,
+          fontSize: 13, color: '#92400e', zIndex: 30,
         }}>
           💡 {hints[hintIndex]}
         </div>
       )}
 
-      {/* Check Answer + Hint buttons */}
+      {/* submit + hint buttons */}
       {!disabled && (
         <div style={{
-          position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', gap: 10, alignItems: 'center',
+          position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', gap: 10, alignItems: 'center', zIndex: 30,
         }}>
           <button
             onClick={handleSubmit}
@@ -198,9 +179,9 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
             <button
               onClick={handleShowHint}
               style={{
-                padding: '9px 18px', fontSize: 13,
-                borderRadius: 8, border: '1px solid #d1d5db',
-                background: 'none', color: '#6b7280', cursor: 'pointer',
+                padding: '9px 18px', fontSize: 13, borderRadius: 8,
+                border: '1px solid #ffffff33', background: 'rgba(0,0,0,0.4)',
+                color: '#e5e7eb', cursor: 'pointer',
               }}
             >
               💡 Hint
@@ -208,6 +189,6 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
           )}
         </div>
       )}
-    </div>
+    </>
   )
 }

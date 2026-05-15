@@ -4,8 +4,10 @@ import type {
   LessonNode,
   LessonNodeType,
   TransitionCondition,
+  Question
 } from '@/shared/types'
 import QuestionConfigModal from '@/shared/components/editor/builders/questionConfigModal'
+import { questionApi } from '@/shared/api/questionApi'
 
 interface NodeSettingsPopoverProps {
   x: number
@@ -67,6 +69,23 @@ const NodeSettingsPopover = React.forwardRef<HTMLDivElement, NodeSettingsPopover
 
     const getTarget = (condition: TransitionCondition): string =>
       (node.transitions ?? []).find(t => t.condition === condition)?.targetNodeId ?? ''
+
+    const [editingQuestion, setEditingQuestion] = useState<Question | null>(null)
+    const [fetchingId, setFetchingId] = useState<number | null>(null)
+
+    async function handleEditQuestion(qid: number) {
+      if (!token) return
+      setFetchingId(qid)
+      try {
+        const q = await questionApi.getById(qid, token)
+        setEditingQuestion(q)
+        setShowQuestionModal(true)
+      } catch (err) {
+        console.error('Failed to load question', err)
+      } finally {
+        setFetchingId(null)
+      }
+    }
 
     return (
       <>
@@ -191,14 +210,27 @@ const NodeSettingsPopover = React.forwardRef<HTMLDivElement, NodeSettingsPopover
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '6px 10px', borderRadius: 6, marginBottom: 4,
                     background: '#052e16', border: '1px solid #14532d',
-                    fontSize: 11,
+                    fontSize: 11, gap: 4,
                   }}>
+                    {/* Canvas editor */}
                     <button
                       onClick={() => { onSelectQuestion(qid); onClose() }}
-                      style={{ background: 'none', border: 'none', color: '#86efac', cursor: 'pointer', fontSize: 11, padding: 0 }}
+                      style={{ background: 'none', border: 'none', color: '#86efac', cursor: 'pointer', fontSize: 11, padding: 0, flex: 1, textAlign: 'left' }}
                     >
                       ✏️ Q{i + 1} · #{qid}
                     </button>
+
+                    {/* Edit semantic content */}
+                    <button
+                      onClick={() => handleEditQuestion(qid)}
+                      disabled={fetchingId === qid}
+                      title="Edit question content"
+                      style={{ background: 'none', border: 'none', color: '#60a5fa', cursor: 'pointer', fontSize: 13, padding: '0 4px' }}
+                    >
+                      {fetchingId === qid ? '…' : '⚙️'}
+                    </button>
+
+                    {/* Remove */}
                     <button
                       onClick={() => onRemoveQuestionId(node.id, qid)}
                       style={{ background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: 13, padding: 0 }}
@@ -249,11 +281,19 @@ const NodeSettingsPopover = React.forwardRef<HTMLDivElement, NodeSettingsPopover
             lessonId={lessonId}
             nodeId={node.id}
             token={token}
+            editQuestionId={editingQuestion?.id}
+            editTemplateType={editingQuestion?.templateType}
+            editTopicId={editingQuestion?.topicId}
+            editContent={editingQuestion?.contentJson}
             onSave={(questionId) => {
-              onAddQuestionId(node.id, questionId)
+              if (!editingQuestion) onAddQuestionId(node.id, questionId)
               setShowQuestionModal(false)
+              setEditingQuestion(null)
             }}
-            onClose={() => setShowQuestionModal(false)}
+            onClose={() => {
+              setShowQuestionModal(false)
+              setEditingQuestion(null)
+            }}
           />
         )}
       </>
