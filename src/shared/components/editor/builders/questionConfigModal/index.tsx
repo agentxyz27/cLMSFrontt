@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import type { DragMatchContent, MultipleChoiceContent, TemplateType } from '@/shared/types'
 import { createDragMatchCanvas } from '../createDragMatchCanvas'
 import { createMultipleChoiceCanvas } from '../createMultipleChoiceCanvas'
+import { listSkins, getSkin } from '@/shared/components/interactions/dragMatch/skins/registry'
 
 const MATH_TOPICS = [
   { id: 1,  name: 'Addition'       }, { id: 2,  name: 'Subtraction'    },
@@ -13,15 +14,13 @@ const MATH_TOPICS = [
   { id: 13, name: 'Money'          }, { id: 14, name: 'Data and Graphs' },
 ]
 
-interface Pair {
-  itemLabel: string
-  targetLabel: string
+const SKIN_LABELS: Record<string, string> = {
+  'default': 'Default cards',
+  'animal-feeding': '🐾 Animal feeding',
 }
 
-interface ChoiceEntry {
-  label: string
-  isCorrect: boolean
-}
+interface Pair { itemLabel: string; targetLabel: string }
+interface ChoiceEntry { label: string; isCorrect: boolean }
 
 interface QuestionConfigModalProps {
   lessonId: number
@@ -62,11 +61,21 @@ function buildDragMatchContent(
   prompt: string,
   pairs: Pair[],
   hints: string[],
+  skinId: string,
+  skinMeta: Record<string, unknown>,
 ): DragMatchContent {
   const items   = pairs.map((p, i) => ({ id: `item_${i + 1}`,   label: p.itemLabel   }))
   const targets = pairs.map((p, i) => ({ id: `target_${i + 1}`, label: p.targetLabel, accepts: `item_${i + 1}` }))
   const canvas  = createDragMatchCanvas({ prompt, items, targets })
-  return { prompt, hints: hints.filter(Boolean), items, targets, canvas }
+  return {
+    prompt,
+    hints: hints.filter(Boolean),
+    items,
+    targets,
+    canvas,
+    skin: skinId !== 'default' ? skinId : undefined,
+    skinMeta: Object.keys(skinMeta).length > 0 ? skinMeta : undefined,
+  }
 }
 
 function buildMultipleChoiceContent(
@@ -117,6 +126,23 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       setPairs(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p))
     }
 
+    // ── Skin state ───────────────────────────────────────────────────────
+    const initSkinId = (): string => {
+      if (editContent && 'skin' in editContent)
+        return (editContent as DragMatchContent).skin ?? 'default'
+      return 'default'
+    }
+    const initSkinMeta = (): Record<string, unknown> => {
+      if (editContent && 'skinMeta' in editContent)
+        return (editContent as DragMatchContent).skinMeta ?? {}
+      return {}
+    }
+    const [skinId,   setSkinId  ] = useState<string>(initSkinId)
+    const [skinMeta, setSkinMeta] = useState<Record<string, unknown>>(initSkinMeta)
+
+    const availableSkins = listSkins()
+    const activeSkin     = getSkin(skinId)
+
     // ── Multiple choice state ────────────────────────────────────────────
     const initChoices = (): ChoiceEntry[] => {
       if (editContent && 'choices' in editContent) {
@@ -136,21 +162,17 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       if (choices.length >= 4) return
       setChoices(prev => [...prev, { label: '', isCorrect: false }])
     }
-
     function removeChoice(i: number) {
       if (choices.length <= 2) return
       setChoices(prev => {
         const next = prev.filter((_, idx) => idx !== i)
-        // if we removed the correct one, default to first
         if (!next.some(c => c.isCorrect)) next[0].isCorrect = true
         return next
       })
     }
-
     function updateChoiceLabel(i: number, value: string) {
       setChoices(prev => prev.map((c, idx) => idx === i ? { ...c, label: value } : c))
     }
-
     function setCorrect(i: number) {
       setChoices(prev => prev.map((c, idx) => ({ ...c, isCorrect: idx === i })))
     }
@@ -171,9 +193,9 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
         if (pairs.some(p => !p.targetLabel.trim())) return 'All target labels are required'
       }
       if (templateType === 'MULTIPLE_CHOICE') {
-        if (choices.length < 2)                       return 'At least 2 choices are required'
-        if (choices.some(c => !c.label.trim()))       return 'All choice labels are required'
-        if (!choices.some(c => c.isCorrect))          return 'One choice must be marked correct'
+        if (choices.length < 2)                 return 'At least 2 choices are required'
+        if (choices.some(c => !c.label.trim())) return 'All choice labels are required'
+        if (!choices.some(c => c.isCorrect))    return 'One choice must be marked correct'
       }
       return null
     }
@@ -189,7 +211,7 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
 
       try {
         const contentJson = templateType === 'DRAG_MATCH'
-          ? buildDragMatchContent(prompt, pairs, hints)
+          ? buildDragMatchContent(prompt, pairs, hints, skinId, skinMeta)
           : buildMultipleChoiceContent(prompt, choices, hints)
 
         const { questionApi } = await import('@/shared/api/questionApi')
@@ -198,9 +220,7 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
           await questionApi.update(editQuestionId, { topicId, contentJson }, token)
           onSave(editQuestionId)
         } else {
-          const res = await questionApi.create({
-            lessonId, topicId, templateType, contentJson,
-          }, token)
+          const res = await questionApi.create({ lessonId, topicId, templateType, contentJson }, token)
           onSave(res.question.id)
         }
       } catch (err: unknown) {
@@ -312,6 +332,40 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
                 <button onClick={addPair} style={{ ...btnCss('ghost'), fontSize: 11, paddingLeft: 0 }}>
                   + Add pair
                 </button>
+              </div>
+            )}
+
+            {/* Skin picker (DRAG_MATCH only) */}
+            {templateType === 'DRAG_MATCH' && (
+              <div style={{ borderTop: '1px solid #2a2d3a', paddingTop: 14 }}>
+                <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
+                  Interaction skin <span style={{ color: '#374151' }}>(optional)</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                  {availableSkins.map(skin => (
+                    <button
+                      key={skin.id}
+                      onClick={() => { setSkinId(skin.id); setSkinMeta(skin.defaultMeta?.() ?? {}) }}
+                      style={{
+                        padding: '5px 12px', fontSize: 11, borderRadius: 6,
+                        cursor: 'pointer', border: '1px solid',
+                        borderColor: skinId === skin.id ? '#3b82f6' : '#2a2d3a',
+                        background: skinId === skin.id ? 'rgba(59,130,246,0.15)' : 'transparent',
+                        color: skinId === skin.id ? '#60a5fa' : '#6b7280',
+                        transition: 'all 0.12s',
+                      }}
+                    >
+                      {SKIN_LABELS[skin.id] ?? skin.id}
+                    </button>
+                  ))}
+                </div>
+                {activeSkin.ConfigFields && (
+                  <activeSkin.ConfigFields
+                    pairs={pairs}
+                    skinMeta={skinMeta}
+                    onChange={setSkinMeta}
+                  />
+                )}
               </div>
             )}
 

@@ -5,6 +5,7 @@ import { AuthProvider } from '../providers/authProvider'
 import ErrorBoundary from '../shared/components/errorBoundary.tsx'
 import { TooltipProvider } from '@/components/ui/tooltip.tsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import '@/shared/components/interactions/dragMatch/skins'
 import './index.css'
 import App from './App.tsx'
 

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ViewerStage } from '@/shared/components/editor/stages'
 import { NODE_TYPE_COLOR, NODE_TYPE_LABEL } from '@/shared/components/editor/canvasEditor/constants'
 import { BLANK_CANVAS } from '@/shared/components/editor/canvasEditor/constants'
-import DragMatch from './interactions/dragMatch'
+import DragMatch from '../../../shared/components/interactions/dragMatch'
 import type {
   LessonNode, LessonGraph, Question, CanvasData,
   DragMatchContent, MultipleChoiceContent, McOptionProps
