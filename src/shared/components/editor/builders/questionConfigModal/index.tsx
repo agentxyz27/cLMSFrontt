@@ -15,8 +15,9 @@ const MATH_TOPICS = [
 ]
 
 const SKIN_LABELS: Record<string, string> = {
-  'default': 'Default cards',
+  'default':        'Default cards',
   'animal-feeding': '🐾 Animal feeding',
+  'chest':          '📦 Treasure chest',
 }
 
 interface Pair { itemLabel: string; targetLabel: string }
@@ -108,7 +109,6 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
     const [saving,       setSaving      ] = useState(false)
     const [error,        setError       ] = useState<string | null>(null)
 
-    // ── Drag match state ─────────────────────────────────────────────────
     const initPairs = (): Pair[] => {
       if (editContent && 'items' in editContent) {
         return (editContent as DragMatchContent).items.map((item, i) => ({
@@ -126,7 +126,6 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       setPairs(prev => prev.map((p, idx) => idx === i ? { ...p, [field]: value } : p))
     }
 
-    // ── Skin state ───────────────────────────────────────────────────────
     const initSkinId = (): string => {
       if (editContent && 'skin' in editContent)
         return (editContent as DragMatchContent).skin ?? 'default'
@@ -143,7 +142,6 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
     const availableSkins = listSkins()
     const activeSkin     = getSkin(skinId)
 
-    // ── Multiple choice state ────────────────────────────────────────────
     const initChoices = (): ChoiceEntry[] => {
       if (editContent && 'choices' in editContent) {
         const mc = editContent as MultipleChoiceContent
@@ -177,14 +175,12 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       setChoices(prev => prev.map((c, idx) => ({ ...c, isCorrect: idx === i })))
     }
 
-    // ── Hints ────────────────────────────────────────────────────────────
     function addHint()             { setHints(prev => [...prev, '']) }
     function removeHint(i: number) { setHints(prev => prev.filter((_, idx) => idx !== i)) }
     function updateHint(i: number, value: string) {
       setHints(prev => prev.map((h, idx) => idx === i ? value : h))
     }
 
-    // ── Validation ───────────────────────────────────────────────────────
     function validate(): string | null {
       if (!prompt.trim()) return 'Prompt is required'
       if (templateType === 'DRAG_MATCH') {
@@ -200,7 +196,6 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
       return null
     }
 
-    // ── Submit ───────────────────────────────────────────────────────────
     async function handleSubmit() {
       const validationError = validate()
       if (validationError) { setError(validationError); return }
@@ -229,6 +224,23 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
         setSaving(false)
       }
     }
+
+    // ── Inline skin preview data ─────────────────────────────────────────
+    const previewData = skinId !== 'default' ? (() => {
+      const mockContent: DragMatchContent = {
+        prompt: '',
+        items:   pairs.map((p, i) => ({ id: `item_${i+1}`,   label: p.itemLabel   || `Item ${i+1}`   })),
+        targets: pairs.map((p, i) => ({ id: `target_${i+1}`, label: p.targetLabel || `Target ${i+1}`, accepts: `item_${i+1}` })),
+        skin: skinId,
+        skinMeta,
+      }
+      const prepared       = activeSkin.prepare(mockContent)
+      const previewTargets = prepared.targets
+      const previewItems   = prepared.items
+      const targetSpacing  = 460 / (previewTargets.length + 1)
+      const itemSpacing    = 460 / (previewItems.length + 1)
+      return { previewTargets, previewItems, targetSpacing, itemSpacing }
+    })() : null
 
     return (
       <div
@@ -341,6 +353,7 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
                 <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 10 }}>
                   Interaction skin <span style={{ color: '#374151' }}>(optional)</span>
                 </div>
+
                 <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
                   {availableSkins.map(skin => (
                     <button
@@ -359,12 +372,69 @@ const QuestionConfigModal = React.forwardRef<HTMLDivElement, QuestionConfigModal
                     </button>
                   ))}
                 </div>
+
                 {activeSkin.ConfigFields && (
                   <activeSkin.ConfigFields
                     pairs={pairs}
                     skinMeta={skinMeta}
                     onChange={setSkinMeta}
                   />
+                )}
+
+                {/* Live preview — inline, same render cycle */}
+                {previewData && (
+                  <div style={{ marginTop: 14 }}>
+                    <div style={{ fontSize: 10, color: '#4b5568', marginBottom: 6 }}>Preview</div>
+                    <div style={{
+                      position: 'relative',
+                      width: 460, height: 180,
+                      background: '#0a0c12',
+                      borderRadius: 8, border: '1px solid #2a2d3a',
+                      overflow: 'hidden',
+                    }}>
+                      {previewData.previewTargets.map((target: any, i: number) => (
+                        <activeSkin.TargetRenderer
+                          key={target.id}
+                          target={target}
+                          canvasEl={{
+                            id: `pt_${i}`, type: 'drag-target' as const,
+                            x: previewData.targetSpacing * (i + 1) - 50,
+                            y: 10,
+                            width: 100, height: 100, rotation: 0,
+                            props: { label: target.label, color: '#10b981', accepts: '' },
+                          } as any}
+                          scale={1}
+                          placedItem={null}
+                          disabled={true}
+                          isHovering={false}
+                          dropResult={null}
+                          onDrop={() => {}}
+                          onDragOver={() => {}}
+                          onDragEnter={() => {}}
+                          onDragLeave={() => {}}
+                          onUnplace={() => {}}
+                        />
+                      ))}
+                      {previewData.previewItems.map((item: any, i: number) => (
+                        <activeSkin.ItemRenderer
+                          key={item.id}
+                          item={item}
+                          canvasEl={{
+                            id: `pi_${i}`, type: 'drag-item' as const,
+                            x: previewData.itemSpacing * (i + 1) - 50,
+                            y: 120,
+                            width: 100, height: 48, rotation: 0,
+                            props: { label: item.label, color: '#f59e0b', textColor: '#ffffff' },
+                          } as any}
+                          scale={1}
+                          isPlaced={false}
+                          isDragging={false}
+                          disabled={true}
+                          onDragStart={() => {}}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
             )}

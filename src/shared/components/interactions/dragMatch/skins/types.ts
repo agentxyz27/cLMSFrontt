@@ -1,6 +1,8 @@
 import type React from 'react'
 import type { DragMatchContent, CanvasElement } from '@/shared/types'
 
+export type DropResult = 'correct' | 'wrong' | null
+
 export interface SkinItemState {
   item: DragMatchContent['items'][number]
   canvasEl: CanvasElement
@@ -17,8 +19,12 @@ export interface SkinTargetState {
   scale: number
   placedItem: DragMatchContent['items'][number] | null
   disabled: boolean
+  isHovering: boolean
+  dropResult: DropResult
   onDrop: () => void
   onDragOver: (e: React.DragEvent) => void
+  onDragEnter: () => void
+  onDragLeave: () => void
   onUnplace: () => void
 }
 

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { DragMatchContent, CanvasData } from '@/shared/types'
 import { useDragMatch } from './useDragMatch'
 import { getSkin } from './skins/registry'
@@ -18,10 +19,13 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
   const canvasTargets = elements.filter(el => el.type === 'drag-target')
 
   const skin    = getSkin(content.skin)
+  console.log('skin id:', content.skin, '→ resolved:', skin.id)
   const prepared = skin.prepare(content)
 
+  const [hoveredTargetId, setHoveredTargetId] = useState<string | null>(null)
+
   const {
-    items, targets, matches, draggingId, hintIndex,
+    items, targets, matches, dropResults, draggingId, hintIndex,
     placedItemIds, allFilled,
     handleDragStart, handleDrop, handleDragOver, handleUnplace, handleSubmit, handleShowHint,
   } = useDragMatch({
@@ -50,8 +54,12 @@ export default function DragMatch({ content, canvasData, scale, disabled, onSubm
               scale={scale}
               placedItem={placedItem}
               disabled={disabled}
+              isHovering={hoveredTargetId === target.id}
+              dropResult={dropResults[target.id] ?? null}
               onDrop={() => handleDrop(target.id)}
               onDragOver={handleDragOver}
+              onDragEnter={() => setHoveredTargetId(target.id)}
+              onDragLeave={() => setHoveredTargetId(null)}
               onUnplace={() => handleUnplace(target.id)}
             />
           )

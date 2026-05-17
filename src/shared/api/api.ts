@@ -15,7 +15,7 @@
  *   This keeps api.ts decoupled from React — no hooks needed here.
  */
 
-const BASE_URL = '/api'
+const BASE_URL = import.meta.env.VITE_API_URL || '/api'
 
 /**
  * Core request function. All api methods call this internally.
